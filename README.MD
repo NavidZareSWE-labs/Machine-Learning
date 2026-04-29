@@ -1,5 +1,5 @@
-# 📘 Machine Learning
-![Machine Learning](https://res.cloudinary.com/dyjew8iji/image/upload/v1777428609/Machine_Learning_prxuzm.png)
+# Machine Learning
+ ![Machine Learning](https://res.cloudinary.com/dyjew8iji/image/upload/v1777428609/Machine_Learning_prxuzm.png)
 
 This repository contains materials, implementations, and notes covering a broad range of fundamental and advanced topics in Machine Learning. It is designed to serve as a structured learning resource, combining theoretical foundations with practical insights.
 
@@ -140,16 +140,3 @@ Contributions are welcome. You can:
 * Fix bugs
 * Suggest new topics
 
----
-
-## 📜 License
-
-This project is intended for educational purposes. Add a license if you plan to distribute or use it publicly.
-
----
-
-## 📎 Notes
-
-This repository is intentionally broad rather than deeply specialized, allowing flexibility to expand topics over time depending on learning goals and available time.
-
----
