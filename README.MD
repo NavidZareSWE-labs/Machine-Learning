@@ -140,16 +140,3 @@ Contributions are welcome. You can:
 * Fix bugs
 * Suggest new topics
 
----
-
-## 📜 License
-
-This project is intended for educational purposes. Add a license if you plan to distribute or use it publicly.
-
----
-
-## 📎 Notes
-
-This repository is intentionally broad rather than deeply specialized, allowing flexibility to expand topics over time depending on learning goals and available time.
-
----
