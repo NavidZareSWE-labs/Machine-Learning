@@ -78,3 +78,23 @@ def plot_pruning_experiment(depths, gmean_means, gmean_stds,
     ax.set_ylim(0, 1)
     fig.tight_layout()
     _save(fig, path)
+
+
+# ========= Section 3: Task 2 Bagging =========
+
+def plot_bagging_experiment(T_values, gmean_means, gmean_stds, f1_means, f1_stds, path='output/section3/bagging_T_experiment.png'):
+    x = np.arange(len(T_values))
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.errorbar(x, gmean_means, yerr=gmean_stds, marker='o', label='G-mean', capsize=5, linewidth=2, color='steelblue')
+    ax.errorbar(x, f1_means, yerr=f1_stds, marker='s', label='F1 (+1)', capsize=5, linewidth=2, color='tomato')
+    
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(t) for t in T_values], fontsize=11)
+    ax.set_xlabel('Ensemble Size (T)', fontsize=12)
+    ax.set_ylabel('Score', fontsize=12)
+    ax.set_title('Bagging Imbalanced: G-mean and F1 vs. T\n(HDDT max_depth=3, 10 runs)', fontsize=12, fontweight='bold')
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(0, 1)
+    fig.tight_layout()
+    _save(fig, path)
