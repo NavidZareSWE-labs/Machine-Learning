@@ -22,18 +22,20 @@ class BaggingImbalanced:
     def fit(self, X, y):
         if self.random_state is not None:
             np.random.seed(self.random_state)
-            
+
         self.estimators = []
         pos_indices = np.where(y == 1)[0]
         neg_indices = np.where(y == -1)[0]
-        
+
         n_minority = len(pos_indices)
-        
+
         for _ in range(self.T):
             # Bootstrap minority (with replacement)
-            pos_sample = np.random.choice(pos_indices, size=n_minority, replace=True)
+            pos_sample = np.random.choice(
+                pos_indices, size=n_minority, replace=True)
             # Undersample majority (without replacement)
-            neg_sample = np.random.choice(neg_indices, size=n_minority, replace=False)
+            neg_sample = np.random.choice(
+                neg_indices, size=n_minority, replace=False)
 
             subset_indices = np.concatenate([pos_sample, neg_sample])
             np.random.shuffle(subset_indices)
@@ -42,16 +44,17 @@ class BaggingImbalanced:
             y_subset = y[subset_indices]
 
             if self.base_learner == 'hddt':
-                model = HDDT(min_samples_split=self.min_samples_split, max_depth=self.max_depth)
+                model = HDDT(min_samples_split=self.min_samples_split,
+                             max_depth=self.max_depth)
             elif self.base_learner == 'dt':
                 model = DecisionTreeClassifier(
-                    max_depth=self.max_depth, 
+                    max_depth=self.max_depth,
                     min_samples_split=self.min_samples_split,
                     random_state=np.random.randint(10000)
                 )
             else:
                 raise ValueError("base_learner must be 'hddt' or 'dt'")
-                
+
             model.fit(X_subset, y_subset)
             self.estimators.append(model)
 
@@ -80,26 +83,29 @@ class BaggingImbalanced:
 
 def run_experiment(T_values, base_learner='hddt', seeds=range(10)):
     results = {}
-    
+
     for T in T_values:
         print(f"\nRunning Bagging (base={base_learner}, T={T})")
         T_metrics = []
         for seed in seeds:
-            (X_tr, X_te, y_tr, y_te, *_) = load_and_preprocess(CSV_PATH, random_state=seed, verbose=False)
+            (X_tr, X_te, y_tr, y_te, *_) = load_and_preprocess(CSV_PATH,
+                                                               random_state=seed, verbose=False)
 
-            model = BaggingImbalanced(base_learner=base_learner, T=T, max_depth=3, random_state=seed)
+            model = BaggingImbalanced(
+                base_learner=base_learner, T=T, max_depth=3, random_state=seed)
             model.fit(X_tr, y_tr)
-            
+
             y_pred = model.predict(X_te)
             y_proba = model.predict_proba(X_te)
-            
+
             m = compute_metrics(y_te, y_pred, y_proba)
             T_metrics.append(m)
 
         means, stds = aggregate_runs(T_metrics)
         results[T] = (means, stds)
-        print(f"  Result: G-mean = {means['gmean']:.4f} ± {stds['gmean']:.4f}")
-        
+        print(
+            f"  Result: G-mean = {means['gmean']:.4f} +- {stds['gmean']:.4f}")
+
     return results
 
 
@@ -117,19 +123,22 @@ def main():
     gmean_s = [results_hddt[T][1]['gmean'] for T in T_values]
     f1_m = [results_hddt[T][0]['f1'] for T in T_values]
     f1_s = [results_hddt[T][1]['f1'] for T in T_values]
-    
+
     visualize.plot_bagging_experiment(
-        T_values, gmean_m, gmean_s, f1_m, f1_s, 
+        T_values, gmean_m, gmean_s, f1_m, f1_s,
         path='output/section3/bagging_T_experiment.png'
     )
-    
+
     # Experiment 2: Comparing Base Learners at T=51
     print("\n--- Experiment B: HDDT vs scikit-learn DT (T=51) ---")
     results_dt = run_experiment([51], base_learner='dt')
 
     print("\nComparison Table (T=51):")
-    print_metrics_table(results_hddt[51][0], results_hddt[51][1], title="Bagging with HDDT (T=51)")
-    print_metrics_table(results_dt[51][0], results_dt[51][1], title="Bagging with Sklearn DT (T=51)")
+    print_metrics_table(
+        results_hddt[51][0], results_hddt[51][1], title="Bagging with HDDT (T=51)")
+    print_metrics_table(
+        results_dt[51][0], results_dt[51][1], title="Bagging with Sklearn DT (T=51)")
+
 
 if __name__ == '__main__':
     main()
