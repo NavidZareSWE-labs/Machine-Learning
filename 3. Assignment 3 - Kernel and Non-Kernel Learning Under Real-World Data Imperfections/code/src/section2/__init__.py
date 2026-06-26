@@ -1,0 +1,1 @@
+from .data_quality import run_full_investigation
