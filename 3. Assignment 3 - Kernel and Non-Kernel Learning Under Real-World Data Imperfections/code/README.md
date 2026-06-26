@@ -36,7 +36,7 @@ This project investigates how data characteristics, imperfections, and preproces
 ## Project Structure
 
 ```
-DIP/
+
 ├── data/                          # Raw datasets
 │   ├── Inside Airbnb Dataset/
 │   ├── NYC 311 Service Requests/
