@@ -3,7 +3,11 @@ from scipy.linalg import solve
 
 
 class LinearRegression:
-    # Ridge Regression: w = (X^T X + lambda * I)^{-1} X^T y
+    """Ridge Regression: w = (X^T X + lambda * D)^{-1} X^T y
+
+    D is identity with D[0,0] = 0: the intercept is not penalised, so the fit
+    stays invariant to a constant shift of y. (np.eye would shrink the bias.)
+    """
 
     def __init__(self, reg_lambda=1.0, fit_intercept=True):
         self.reg_lambda = reg_lambda
@@ -21,15 +25,25 @@ class LinearRegression:
 
         d_aug = X_aug.shape[1]
 
-        A = X_aug.T @ X_aug + self.reg_lambda * np.eye(d_aug)
+        D = np.eye(d_aug)
+        if self.fit_intercept:
+            D[0, 0] = 0.0
+
+        A = X_aug.T @ X_aug + self.reg_lambda * D
         b = X_aug.T @ y
-        w = solve(A, b, assume_a='pos')
+
+        # Collinear features can break positive-definiteness; fall back.
+        try:
+            w = solve(A, b, assume_a='pos')
+        except Exception:
+            w = np.linalg.lstsq(A, b, rcond=None)[0]
 
         if self.fit_intercept:
             self.bias = w[0]
             self.weights = w[1:]
         else:
             self.weights = w
+            self.bias = 0.0
 
         return self
 

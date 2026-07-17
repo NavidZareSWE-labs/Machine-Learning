@@ -1,0 +1,8 @@
+{
+  "include": ["main.py", "src"],
+  "exclude": ["**/__pycache__", "data", "output"],
+  "extraPaths": ["src"],
+  "reportMissingImports": "warning",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic"
+}

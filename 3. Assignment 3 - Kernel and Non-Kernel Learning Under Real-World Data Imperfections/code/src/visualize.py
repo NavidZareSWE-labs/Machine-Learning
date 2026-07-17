@@ -48,7 +48,16 @@ def plot_outlier_comparison(outlier_dict, dataset_name, output_dir):
     if not outlier_dict:
         return
 
-    cols = list(outlier_dict.keys())[:10]
+    # Keys starting with '_' are summary entries (e.g. '_multivariate'),
+    # not per-column outlier counts. Filter them out, and be defensive about
+    # any entry that lacks the expected per-column fields.
+    cols = [c for c in outlier_dict
+            if not str(c).startswith('_')
+            and isinstance(outlier_dict[c], dict)
+            and 'z_score_outliers' in outlier_dict[c]][:10]
+    if not cols:
+        return
+
     z_counts = [outlier_dict[c]['z_score_outliers'] for c in cols]
     iqr_counts = [outlier_dict[c]['iqr_outliers'] for c in cols]
     iso_counts = [outlier_dict[c].get('isolation_forest_outliers', 0) for c in cols]

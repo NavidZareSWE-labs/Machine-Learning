@@ -3,13 +3,15 @@ import numpy as np
 
 class _TreeNode:
     def __init__(self, feature=None, threshold=None, left=None, right=None,
-                 value=None, is_leaf=False):
+                 value=None, is_leaf=False, proba=None):
         self.feature = feature
         self.threshold = threshold
         self.left = left
         self.right = right
         self.value = value
         self.is_leaf = is_leaf
+        # Leaf class distribution: a majority label alone gives a degenerate ROC.
+        self.proba = proba
 
 
 class DecisionTreeClassifier:
@@ -78,14 +80,12 @@ class DecisionTreeClassifier:
         if (depth >= self.max_depth or
             n < self.min_samples_split or
             len(np.unique(y)) == 1):
-            unique, counts = np.unique(y, return_counts=True)
-            return _TreeNode(value=unique[np.argmax(counts)], is_leaf=True)
+            return self._make_leaf(y)
 
         feature, threshold, gain = self._find_best_split(X, y)
 
         if feature is None or gain <= 0:
-            unique, counts = np.unique(y, return_counts=True)
-            return _TreeNode(value=unique[np.argmax(counts)], is_leaf=True)
+            return self._make_leaf(y)
 
         left_mask = X[:, feature] <= threshold
         right_mask = ~left_mask
@@ -96,10 +96,29 @@ class DecisionTreeClassifier:
         return _TreeNode(feature=feature, threshold=threshold,
                          left=left_child, right=right_child)
 
+    def _make_leaf(self, y):
+        unique, counts = np.unique(y, return_counts=True)
+        proba = np.zeros(len(self.classes_))
+        cls_idx = {c: i for i, c in enumerate(self.classes_)}
+        for c, ct in zip(unique, counts):
+            proba[cls_idx[c]] = ct / len(y)
+        return _TreeNode(value=unique[np.argmax(counts)], is_leaf=True,
+                         proba=proba)
+
     def fit(self, X, y):
         self.classes_ = np.unique(y)
         self.root = self._build_tree(X, y, depth=0)
         return self
+
+    def _proba_single(self, x, node):
+        if node.is_leaf:
+            return node.proba
+        if x[node.feature] <= node.threshold:
+            return self._proba_single(x, node.left)
+        return self._proba_single(x, node.right)
+
+    def predict_proba(self, X):
+        return np.array([self._proba_single(x, self.root) for x in X])
 
     def _predict_single(self, x, node):
         if node.is_leaf:
