@@ -71,10 +71,36 @@ def train_test_split(X, y, test_size=0.2, random_state=42, stratify=False):
     return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
 
 
-def smote_oversample(X, y, random_state=42, k=5):
+def smote_oversample(X, y, random_state=42, k=5, scale_distances=True):
+    """Synthetic Minority Oversampling Technique.
+
+    scale_distances: search for nearest neighbours in a scale-normalised space
+        (each column divided by its standard deviation) rather than in raw
+        units. This matters. On IBM HR the raw columns span wildly different
+        magnitudes -- MonthlyRate runs to ~27000 and DailyRate to ~1500, while
+        Education and JobSatisfaction are 1-4. Raw Euclidean distance is then
+        decided almost entirely by the two rate columns, and the ordinal
+        satisfaction features contribute essentially nothing to which
+        neighbours get picked. Normalising gives every feature comparable
+        weight in the neighbour search.
+
+        Only the CHOICE of neighbour changes. The synthetic point is still
+        interpolated in the original feature space, and because per-column
+        scaling is affine, interpolating in scaled space and mapping back
+        would yield the identical point. So the returned array is in raw
+        units and callers need no change.
+
+        Set False to reproduce the previous (unscaled) behaviour.
+    """
     rng = np.random.RandomState(random_state)
     classes, counts = np.unique(y, return_counts=True)
     max_count = counts.max()
+
+    if scale_distances:
+        sigma = np.std(X, axis=0)
+        sigma[sigma == 0] = 1.0
+    else:
+        sigma = np.ones(X.shape[1])
 
     X_new = [X.copy()]
     y_new = [y.copy()]
@@ -85,6 +111,7 @@ def smote_oversample(X, y, random_state=42, k=5):
         n_needed = max_count - count
         cls_idx = np.where(y == cls)[0]
         X_cls = X[cls_idx]
+        X_cls_scaled = X_cls / sigma
         n_cls = len(cls_idx)
 
         k_actual = min(k, n_cls - 1)
@@ -97,13 +124,13 @@ def smote_oversample(X, y, random_state=42, k=5):
         synthetic = []
         for _ in range(n_needed):
             i = rng.randint(0, n_cls)
-            x_i = X_cls[i]
-            dists = np.sum((X_cls - x_i) ** 2, axis=1)
+            x_i_scaled = X_cls_scaled[i]
+            dists = np.sum((X_cls_scaled - x_i_scaled) ** 2, axis=1)
             dists[i] = np.inf
             nn_idx = np.argsort(dists)[:k_actual]
             j = nn_idx[rng.randint(0, len(nn_idx))]
             lam = rng.random()
-            synthetic.append(x_i + lam * (X_cls[j] - x_i))
+            synthetic.append(X_cls[i] + lam * (X_cls[j] - X_cls[i]))
 
         X_new.append(np.array(synthetic))
         y_new.append(np.full(n_needed, cls))
