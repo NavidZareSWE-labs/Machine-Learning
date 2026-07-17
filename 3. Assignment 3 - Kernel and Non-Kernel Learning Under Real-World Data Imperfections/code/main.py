@@ -350,16 +350,26 @@ def process_dataset(data_dict, output_base, timings, all_results):
 
         X_s, y_s = subsample_if_needed(X, y, MAX_SAMPLES_STANDARD)
 
-        if dataset_name == 'IBM_HR':
-            print(f"  Applying SMOTE oversampling for class imbalance...")
-            X_s, y_s = smote_oversample(X_s, y_s, random_state=42)
-            print(
-                f"  After SMOTE: {X_s.shape}, " f"distribution={({int(k): int(v) for k, v in zip(*np.unique(y_s, return_counts=True))})}")
-
+        # NOTE: the train/test split MUST happen before any resampling.
+        # SMOTE synthesises minority points by interpolating between a real
+        # point and its k nearest neighbours. If it runs on the full dataset
+        # first, a synthetic point in the training fold can be built from a
+        # real point that later lands in the test fold, and the test set is
+        # itself half synthetic. Both leak. Split first, resample train only.
         X_train, X_test, y_train, y_test = train_test_split(
             X_s, y_s, test_size=0.2, random_state=42, stratify=True
         )
-        print(f"  Train: {X_train.shape}, Test: {X_test.shape}")
+        print(f"  Train: {X_train.shape}, Test: {X_test.shape} "
+              f"(split before resampling)")
+
+        if dataset_name == 'IBM_HR':
+            print(f"  Applying SMOTE oversampling to the TRAINING fold only...")
+            X_train, y_train = smote_oversample(
+                X_train, y_train, random_state=42)
+            print(
+                f"  After SMOTE: train={X_train.shape}, " f"distribution={({int(k): int(v) for k, v in zip(*np.unique(y_train, return_counts=True))})}")
+            print(
+                f"  Test fold left at natural prevalence: " f"distribution={({int(k): int(v) for k, v in zip(*np.unique(y_test, return_counts=True))})}")
 
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
@@ -374,14 +384,27 @@ def process_dataset(data_dict, output_base, timings, all_results):
         print(f"# SECTION 3+4: Kernel Models - {dataset_name}")
         print(f"{'#' * 70}")
 
+        # The kernel block re-subsamples from X_s / y_s, which are now the
+        # ORIGINAL (un-resampled) arrays. It therefore needs its own
+        # split-then-SMOTE, for the same reason as above.
         X_k, y_k = subsample_if_needed(X_s, y_s, MAX_SAMPLES_KERNEL)
         X_train_k, X_test_k, y_train_k, y_test_k = train_test_split(
             X_k, y_k, test_size=0.2, random_state=42, stratify=True
         )
+
+        if dataset_name == 'IBM_HR':
+            print(f"  Applying SMOTE to the kernel TRAINING fold only...")
+            X_train_k, y_train_k = smote_oversample(
+                X_train_k, y_train_k, random_state=42)
+            print(
+                f"  After SMOTE: kernel train={X_train_k.shape}, " f"distribution={({int(k): int(v) for k, v in zip(*np.unique(y_train_k, return_counts=True))})}")
+
         scaler_k = StandardScaler()
         X_train_ks = scaler_k.fit_transform(X_train_k)
         X_test_ks = scaler_k.transform(X_test_k)
         print(f"  Kernel train: {X_train_ks.shape}, test: {X_test_ks.shape}")
+        print(
+            f"  Kernel test distribution: " f"{({int(k): int(v) for k, v in zip(*np.unique(y_test_k, return_counts=True))})}")
 
         kernel_clf_results, kernel_comparison = run_kernel_classification(
             X_train_ks, y_train_k, X_test_ks, y_test_k, dataset_name, out_s4, timings
