@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading the Kernel Codebase — a line-by-line guide</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   The palette is not decorative. Every one of these five files
+   builds, reads, or destroys the same object: the Gram matrix K.
+   K is always drawn as a heatmap, so the heatmap IS the palette.
+   Cold = low similarity. Hot = high similarity.
+   ============================================================ */
+:root{
+  --ink:      #10121b;   /* page background: indigo-tinted near black */
+  --panel:    #181b28;   /* raised surfaces */
+  --panel-2:  #1f2333;   /* code blocks, table stripes */
+  --line:     #2c3145;   /* hairlines */
+  --text:     #d9dcea;   /* body copy */
+  --muted:    #8b90a8;   /* captions, labels */
+  --dim:      #626880;   /* de-emphasised */
+
+  /* the sequential colormap, low -> high */
+  --k0: #26307a;
+  --k1: #5a4f9e;
+  --k2: #9c5b95;
+  --k3: #d4794f;
+  --k4: #f2c75c;
+
+  --gold:   #f0a44a;     /* primary accent  */
+  --cool:   #6f8ff5;     /* secondary accent */
+  --green:  #4fbf8b;     /* "safe / correct" */
+  --red:    #e26d6d;     /* "danger / bug"   */
+
+  --serif: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:  system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:  ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+
+  --rad: 10px;
+  --maxw: 820px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:24px}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *{animation:none !important; transition:none !important}
+}
+body{
+  margin:0; background:var(--ink); color:var(--text);
+  font-family:var(--serif); font-size:17px; line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- layout ---------- */
+.shell{display:grid; grid-template-columns:290px minmax(0,1fr); gap:0; max-width:1240px; margin:0 auto}
+.rail{
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+  border-right:1px solid var(--line); padding:26px 20px 40px; background:var(--ink);
+}
+main{padding:34px 40px 140px; min-width:0}
+.wrap{max-width:var(--maxw)}
+@media (max-width:960px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static; height:auto; border-right:none; border-bottom:1px solid var(--line)}
+  main{padding:24px 18px 100px}
+}
+
+/* ---------- sidebar ---------- */
+.brand{font-family:var(--sans); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--dim)}
+.brand b{display:block; font-family:var(--serif); font-size:19px; letter-spacing:0; text-transform:none; color:var(--text); margin-top:6px; font-weight:600}
+.progwrap{margin:18px 0 20px}
+.progbar{height:5px; background:var(--panel-2); border-radius:99px; overflow:hidden}
+.progfill{height:100%; width:0%; background:linear-gradient(90deg,var(--k0),var(--k2),var(--k4)); transition:width .35s ease}
+.progtxt{font-family:var(--sans); font-size:11px; color:var(--muted); margin-top:7px; letter-spacing:.03em}
+.rail nav{display:flex; flex-direction:column; gap:1px}
+.rail nav a{
+  display:flex; align-items:baseline; gap:9px; text-decoration:none; color:var(--muted);
+  font-family:var(--sans); font-size:13.5px; padding:6px 9px; border-radius:7px; border-left:2px solid transparent;
+}
+.rail nav a .fx{font-family:var(--mono); font-size:10.5px; color:var(--dim); min-width:16px}
+.rail nav a:hover{color:var(--text); background:var(--panel)}
+.rail nav a.on{color:var(--gold); background:var(--panel); border-left-color:var(--gold)}
+.rail nav a.done .fx{color:var(--green)}
+.rail nav a.sub{padding-left:26px; font-size:12.5px}
+.toplink{
+  margin-top:22px; width:100%; font-family:var(--sans); font-size:12px; letter-spacing:.05em;
+  background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px;
+  padding:8px; cursor:pointer;
+}
+.toplink:hover{color:var(--gold); border-color:var(--gold)}
+
+/* ---------- type ---------- */
+h1{font-size:40px; line-height:1.15; margin:0 0 14px; font-weight:600; letter-spacing:-.015em}
+h2{font-size:28px; line-height:1.25; margin:0 0 6px; font-weight:600; letter-spacing:-.01em}
+h3{font-size:20px; margin:32px 0 8px; font-weight:600}
+h4{font-size:16px; margin:22px 0 6px; font-weight:600; color:var(--gold)}
+p{margin:0 0 15px}
+.eyebrow{font-family:var(--sans); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); margin-bottom:10px}
+.lede{font-size:19.5px; color:#c3c8dc}
+.tiny{font-family:var(--sans); font-size:12.5px; color:var(--muted); line-height:1.6}
+ul,ol{margin:0 0 15px; padding-left:22px}
+li{margin-bottom:7px}
+b,strong{color:#fff; font-weight:600}
+a{color:var(--cool)}
+hr{border:none; border-top:1px solid var(--line); margin:44px 0}
+
+section{scroll-margin-top:20px; padding-top:14px}
+.sechead{border-top:1px solid var(--line); padding-top:26px; margin-top:52px; margin-bottom:20px}
+#s-intro .sechead{border-top:none; margin-top:0; padding-top:0}
+
+/* ---------- math (hand-set: no CDN allowed, so no KaTeX) ---------- */
+.m{font-family:var(--serif); font-style:italic; color:#f4e6c8}
+.m .op{font-style:normal; color:var(--muted)}
+.mblock{
+  display:block; text-align:center; font-family:var(--serif); font-style:italic;
+  font-size:19px; color:#f4e6c8; background:var(--panel); border:1px solid var(--line);
+  border-left:3px solid var(--gold); border-radius:var(--rad); padding:16px 14px; margin:18px 0;
+}
+.mblock .op{font-style:normal; color:var(--muted)}
+.mblock small{display:block; font-family:var(--sans); font-style:normal; font-size:11.5px;
+  color:var(--dim); margin-top:9px; letter-spacing:.04em}
+.frac{display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; margin:0 4px}
+.frac span:first-child{border-bottom:1px solid currentColor; padding:0 5px; font-size:.85em}
+.frac span:last-child{padding:0 5px; font-size:.85em}
+
+/* ---------- code ---------- */
+pre{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:var(--rad);
+  padding:14px 16px; overflow-x:auto; margin:14px 0;
+}
+code{font-family:var(--mono); font-size:13.5px}
+p code, li code, td code, .tiny code{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:5px;
+  padding:1px 5px; font-size:13px; color:#e8d9b0;
+}
+pre code{color:#cfd6e6; background:none; border:none; padding:0; line-height:1.62}
+.c-kw{color:#c792ea}   .c-fn{color:#8ecfff}   .c-str{color:#c3e88d}
+.c-num{color:#f78c6c}  .c-cm{color:#5f6a86; font-style:italic}  .c-self{color:#f07178}
+
+/* ---------- collapsibles ---------- */
+details{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--rad);
+  margin:14px 0; overflow:hidden;
+}
+details > summary{
+  cursor:pointer; list-style:none; padding:12px 15px; font-family:var(--sans); font-size:13.5px;
+  color:var(--text); display:flex; align-items:center; gap:10px; user-select:none;
+}
+details > summary::-webkit-details-marker{display:none}
+details > summary::before{
+  content:"›"; font-size:19px; color:var(--gold); transition:transform .18s ease;
+  display:inline-block; line-height:1;
+}
+details[open] > summary::before{transform:rotate(90deg)}
+details > summary:hover{background:var(--panel-2)}
+.dbody{padding:2px 15px 15px; border-top:1px solid var(--line)}
+.dbody > :first-child{margin-top:12px}
+summary .tag{
+  margin-left:auto; font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:2px 8px;
+}
+details.deep > summary::before{color:var(--cool)}
+details.deep{border-color:#26314e}
+
+/* ---------- checkbox / step ---------- */
+.step{
+  display:flex; gap:12px; align-items:center; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--rad); padding:11px 14px; margin:18px 0; font-family:var(--sans); font-size:13.5px;
+}
+.step input{width:17px; height:17px; accent-color:var(--green); cursor:pointer; flex:none}
+.step label{cursor:pointer; color:var(--muted)}
+.step.checked{border-color:#2c5a45}
+.step.checked label{color:var(--green); text-decoration:line-through; text-decoration-color:#2c5a45}
+
+/* ---------- callouts ---------- */
+.note{border-left:3px solid var(--cool); background:#161b2c; border-radius:0 var(--rad) var(--rad) 0;
+  padding:13px 16px; margin:16px 0; font-size:15.5px}
+.warn{border-left:3px solid var(--red); background:#241a1e; border-radius:0 var(--rad) var(--rad) 0;
+  padding:13px 16px; margin:16px 0; font-size:15.5px}
+.good{border-left:3px solid var(--green); background:#152220; border-radius:0 var(--rad) var(--rad) 0;
+  padding:13px 16px; margin:16px 0; font-size:15.5px}
+.note b,.warn b,.good b{display:block; font-family:var(--sans); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; margin-bottom:6px}
+.note b{color:var(--cool)} .warn b{color:var(--red)} .good b{color:var(--green)}
+
+/* ---------- tables ---------- */
+.tbl{width:100%; border-collapse:collapse; margin:16px 0; font-family:var(--sans); font-size:13.5px}
+.tbl th{
+  text-align:left; font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--dim);
+  border-bottom:1px solid var(--line); padding:8px 10px; font-weight:600;
+}
+.tbl td{border-bottom:1px solid #21263a; padding:9px 10px; vertical-align:top; color:var(--muted)}
+.tbl td:first-child{color:var(--text)}
+.tbl tr:hover td{background:var(--panel)}
+.lines td:first-child{font-family:var(--mono); font-size:12.5px; color:#e8d9b0; white-space:pre; width:44%}
+@media (max-width:700px){ .lines td:first-child{width:auto; white-space:pre-wrap} }
+
+/* ---------- file badge ---------- */
+.filebadge{
+  display:inline-flex; align-items:center; gap:9px; font-family:var(--mono); font-size:13px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:99px; padding:5px 14px 5px 6px;
+  color:#e8d9b0; margin-bottom:12px;
+}
+.filebadge i{
+  width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-style:normal;
+  font-size:11px; color:#10121b; font-family:var(--sans); font-weight:700;
+}
+.krole{
+  font-family:var(--sans); font-size:12px; color:var(--muted); border:1px dashed var(--line);
+  border-radius:8px; padding:8px 12px; margin:0 0 18px; display:inline-block;
+}
+.krole b{color:var(--gold); font-weight:600}
+
+/* ---------- interactive panels ---------- */
+.lab{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; margin:20px 0}
+.lab h4{margin:0 0 4px; color:var(--gold)}
+.lab .tiny{margin-bottom:14px}
+.ctl{display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-bottom:14px}
+.ctl label{font-family:var(--sans); font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px}
+.ctl input[type=range]{width:130px; accent-color:var(--gold)}
+.ctl input[type=number]{
+  width:62px; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+  border-radius:6px; padding:4px 6px; font-family:var(--mono); font-size:12.5px;
+}
+.ctl select{
+  background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+  border-radius:6px; padding:5px 8px; font-family:var(--sans); font-size:12.5px;
+}
+.val{font-family:var(--mono); font-size:12.5px; color:var(--gold); min-width:44px; display:inline-block}
+.readout{
+  background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:12px 14px;
+  font-family:var(--mono); font-size:13px; color:#cfd6e6; white-space:pre-wrap; line-height:1.65;
+}
+.readout em{color:var(--gold); font-style:normal}
+svg{max-width:100%; height:auto; display:block}
+.figcap{font-family:var(--sans); font-size:12px; color:var(--dim); margin-top:8px; line-height:1.6}
+.figcap b{color:var(--muted); font-weight:600}
+
+/* ---------- quiz ---------- */
+.q{background:var(--panel); border:1px solid var(--line); border-radius:var(--rad); padding:15px 16px; margin:12px 0}
+.q p{margin:0 0 10px; font-size:16px}
+.q button{
+  font-family:var(--sans); font-size:12px; background:transparent; color:var(--gold);
+  border:1px solid var(--line); border-radius:7px; padding:6px 12px; cursor:pointer;
+}
+.q button:hover{border-color:var(--gold)}
+.qa{display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); font-size:15.5px; color:var(--muted)}
+.qa.show{display:block}
+
+:focus-visible{outline:2px solid var(--gold); outline-offset:2px; border-radius:4px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- =========================== SIDEBAR =========================== -->
+<aside class="rail">
+  <div class="brand">Study guide
+    <b>The Kernel Codebase</b>
+  </div>
+  <p class="tiny" style="margin-top:8px">Five files, one matrix. Read top to bottom.</p>
+
+  <div class="progwrap">
+    <div class="progbar"><div class="progfill" id="progfill"></div></div>
+    <div class="progtxt" id="progtxt">0 of 10 steps confirmed</div>
+  </div>
+
+  <nav id="nav">
+    <a href="#s-intro"     data-sec="s-intro"><span class="fx">00</span>What this is</a>
+    <a href="#s-concepts"  data-sec="s-concepts"><span class="fx">01</span>The idea underneath</a>
+    <a href="#s-arch"      data-sec="s-arch"><span class="fx">02</span>How the files connect</a>
+    <a href="#s-kernels"   data-sec="s-kernels"><span class="fx">03</span>kernels.py</a>
+    <a href="#s-ridge"     data-sec="s-ridge"><span class="fx">04</span>kernel_ridge.py</a>
+    <a href="#s-svm"       data-sec="s-svm"><span class="fx">05</span>kernel_svm.py</a>
+    <a href="#s-kpca"      data-sec="s-kpca"><span class="fx">06</span>kpca.py</a>
+    <a href="#s-knn"       data-sec="s-knn"><span class="fx">07</span>kernel_knn.py</a>
+    <a href="#s-cross"     data-sec="s-cross"><span class="fx">08</span>Shared patterns</a>
+    <a href="#s-lab"       data-sec="s-lab"><span class="fx">09</span>Play with it</a>
+    <a href="#s-quiz"      data-sec="s-quiz"><span class="fx">10</span>Defend it</a>
+  </nav>
+
+  <button class="toplink" onclick="window.scrollTo({top:0})">↑ Back to top</button>
+  <button class="toplink" id="resetbtn" style="margin-top:8px">Clear my progress</button>
+</aside>
+
+<!-- =========================== MAIN =========================== -->
+<main>
+<div class="wrap">
+
+<!-- ---------------- HERO / INTRO ---------------- -->
+<section id="s-intro">
+  <div class="sechead">
+    <div class="eyebrow">00 — What this is</div>
+    <h1>Every file here does one thing to one table.</h1>
+    <p class="lede">That table is <span class="m">K</span>, the kernel matrix. It holds the similarity between every pair of your data points. Build it, and the four algorithms become short.</p>
+  </div>
+
+  <div class="lab" style="border-color:#3a3050">
+    <h4>The table itself</h4>
+    <p class="tiny">Six points sit on a line. Cell (<span class="m">i</span>,<span class="m">j</span>) is how similar point <span class="m">i</span> is to point <span class="m">j</span> under the RBF kernel. Drag <span class="m">γ</span> and watch the whole method change character. This single control is the difference between "every point is a neighbour" and "every point is an island."</p>
+    <div class="ctl">
+      <label>γ (gamma) <input type="range" id="heroG" min="0.02" max="6" step="0.02" value="0.6"><span class="val" id="heroGv">0.60</span></label>
+    </div>
+    <div id="heroMat"></div>
+    <div class="figcap" id="heroCap"></div>
+  </div>
+
+  <h3>What you should be able to do at the end</h3>
+  <p>Point at any line in these five files and say three things: <b>what it computes</b>, <b>which formula it is</b>, and <b>why it is written that way and not the obvious way</b>. The third one is where marks are won, because most of the odd-looking lines in this codebase exist to dodge a specific numerical or memory problem.</p>
+
+  <div class="note">
+    <b>A constraint, stated up front</b>
+    <p style="margin:0">This page is one offline HTML file with no libraries, so a maths renderer like KaTeX or MathJax — which would have to load from a CDN — is not available. Every formula here is therefore set by hand in HTML and CSS using real Unicode symbols. It looks slightly plainer than LaTeX output, and that is the only visible cost of the offline requirement.</p>
+  </div>
+
+  <div class="warn">
+    <b>One thing I could not check</b>
+    <p style="margin:0"><code>kpca.py</code> imports <code>LogisticRegression</code> from <code>.logistic_regression</code>, and every file imports from <code>utils/kernels.py</code>. Only <code>kernels.py</code> was given to me. So everything said about <code>kernels.py</code> is read from its source; everything said about <code>LogisticRegression</code> is limited to what the calling code in <code>kpca.py</code> proves about it (that it accepts <code>lr</code>, <code>n_iters</code>, <code>reg_lambda</code>, and exposes <code>fit</code>, <code>predict</code>, <code>predict_proba</code>, <code>classes_</code>). I have not invented anything about its internals.</p>
+  </div>
+
+  <div class="step" data-step="intro">
+    <input type="checkbox" id="ck-intro"><label for="ck-intro">I know that all five files revolve around one n×n similarity table.</label>
+  </div>
+</section>
+
+<!-- ---------------- CONCEPTS ---------------- -->
+<section id="s-concepts">
+  <div class="sechead">
+    <div class="eyebrow">01 — The idea underneath</div>
+    <h2>Three ideas. Everything else is mechanics.</h2>
+    <p class="lede">Read this section once and the code stops being mysterious. Skip it and you will be memorising line noise.</p>
+  </div>
+
+  <h3>Idea 1 — A dot product is a similarity score</h3>
+  <p>Take two data points, <span class="m">x</span> and <span class="m">z</span>. Their dot product <span class="m">x<span class="op">·</span>z</span> is big when they point the same way and small when they don't. That is all a dot product is: a number saying "how alike are these two."</p>
+  <p>Now here is the observation the whole field is built on. Write out linear regression, PCA, SVM, nearest neighbours — and in every one of them, <b>the data only ever shows up inside a dot product</b>. Never alone. Only ever paired up and multiplied.</p>
+
+  <details>
+    <summary>Show me that's true, for distance at least<span class="tag">worked example</span></summary>
+    <div class="dbody">
+      <p>Squared distance looks like it needs the raw points. It doesn't:</p>
+      <div class="mblock">‖x <span class="op">−</span> z‖<sup>2</sup> <span class="op">=</span> (x <span class="op">−</span> z)<span class="op">·</span>(x <span class="op">−</span> z) <span class="op">=</span> x<span class="op">·</span>x <span class="op">+</span> z<span class="op">·</span>z <span class="op">−</span> 2 x<span class="op">·</span>z
+        <small>Three dot products. The raw coordinates never appear on their own.</small></div>
+      <p>Hold onto this line. It reappears literally, as code, in <code>kernel_knn.py</code> and again inside <code>rbf_kernel</code>.</p>
+    </div>
+  </details>
+
+  <h3>Idea 2 — The kernel trick</h3>
+  <p>Your data isn't separable by a straight line. The classic fix: invent extra features. Map each point through some function <span class="m">φ</span> into a bigger space where it <em>is</em> separable, then run the linear method there.</p>
+  <p>The problem: that space might have a thousand dimensions. Or infinitely many. Computing <span class="m">φ(x)</span> would be impossible.</p>
+  <p>The escape: you established in Idea 1 that you never need <span class="m">φ(x)</span> by itself — you only ever need <span class="m">φ(x)<span class="op">·</span>φ(z)</span>. So if some cheap function <span class="m">k(x,z)</span> happens to return exactly that number, you can run the whole algorithm in the huge space <b>without ever visiting it</b>.</p>
+
+  <div class="mblock">k(x, z) <span class="op">=</span> φ(x) <span class="op">·</span> φ(z)
+    <small>The kernel: a shortcut to a dot product in a space you never build</small></div>
+
+  <div class="lab">
+    <h4 style="margin-bottom:10px">The trick, drawn</h4>
+    <svg viewBox="0 0 700 260" role="img" aria-label="Diagram: the long route through the feature map versus the kernel shortcut">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 z" fill="#8b90a8"/>
+        </marker>
+        <marker id="arg" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 z" fill="#f0a44a"/>
+        </marker>
+      </defs>
+      <!-- input space -->
+      <rect x="14" y="88" width="150" height="86" rx="10" fill="#1f2333" stroke="#2c3145"/>
+      <text x="89" y="112" text-anchor="middle" fill="#d9dcea" font-family="system-ui" font-size="13">Input space</text>
+      <text x="89" y="132" text-anchor="middle" fill="#8b90a8" font-family="ui-monospace" font-size="12">x, z ∈ ℝ&#7496;</text>
+      <text x="89" y="152" text-anchor="middle" fill="#626880" font-family="system-ui" font-size="11">what you actually have</text>
+      <!-- feature space -->
+      <rect x="255" y="14" width="190" height="86" rx="10" fill="#1f2333" stroke="#5a4f9e" stroke-dasharray="4 3"/>
+      <text x="350" y="38" text-anchor="middle" fill="#c9c0e8" font-family="system-ui" font-size="13">Feature space</text>
+      <text x="350" y="58" text-anchor="middle" fill="#8b90a8" font-family="ui-monospace" font-size="12">φ(x), φ(z) ∈ ℝ&#7488; or ℝ&#8734;</text>
+      <text x="350" y="78" text-anchor="middle" fill="#e26d6d" font-family="system-ui" font-size="11">too big to ever build</text>
+      <!-- number -->
+      <rect x="540" y="88" width="146" height="86" rx="10" fill="#1f2333" stroke="#f0a44a"/>
+      <text x="613" y="112" text-anchor="middle" fill="#f2c75c" font-family="system-ui" font-size="13">One number</text>
+      <text x="613" y="134" text-anchor="middle" fill="#f4e6c8" font-family="ui-monospace" font-size="15">k(x, z)</text>
+      <text x="613" y="154" text-anchor="middle" fill="#626880" font-family="system-ui" font-size="11">all the algorithm needs</text>
+      <!-- long route -->
+      <path d="M120,88 C160,40 200,30 250,32" fill="none" stroke="#8b90a8" stroke-width="1.5" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+      <text x="168" y="42" fill="#8b90a8" font-family="system-ui" font-size="11">apply φ</text>
+      <path d="M450,32 C510,32 540,60 570,86" fill="none" stroke="#8b90a8" stroke-width="1.5" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+      <text x="500" y="52" fill="#8b90a8" font-family="system-ui" font-size="11">take dot product</text>
+      <!-- shortcut -->
+      <path d="M166,140 L534,140" fill="none" stroke="#f0a44a" stroke-width="2.5" marker-end="url(#arg)"/>
+      <rect x="290" y="122" width="126" height="34" rx="8" fill="#10121b" stroke="#f0a44a"/>
+      <text x="353" y="144" text-anchor="middle" fill="#f0a44a" font-family="system-ui" font-size="12.5">the kernel shortcut</text>
+      <text x="350" y="212" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="12">Both routes end at the same number. Only the gold one is computable.</text>
+      <text x="350" y="234" text-anchor="middle" fill="#626880" font-family="system-ui" font-size="11.5">In this codebase the gold arrow is a single function: compute_kernel_matrix()</text>
+    </svg>
+    <div class="figcap"><b>How to read it.</b> Grey dashed = the honest, impossible route. Gold = what the code actually runs. The dashed box is drawn dashed on purpose: <code>φ</code> appears nowhere in the codebase. Search for it — it isn't there. That absence is the trick working.</div>
+  </div>
+
+  <h3>Idea 3 — The Gram matrix, and why it's your bill</h3>
+  <p>You don't call <span class="m">k</span> on one pair. You call it on <em>every</em> pair, and store the answers in a square table <span class="m">K</span> where <span class="m">K<sub>ij</sub> <span class="op">=</span> k(x<sub>i</sub>, x<sub>j</sub>)</span>. That is the Gram matrix — the heatmap at the top of this page.</p>
+  <p>It has three properties worth stating out loud, because each one causes a specific line of code later:</p>
+  <ul>
+    <li><b>It's symmetric.</b> <span class="m">K<sub>ij</sub> <span class="op">=</span> K<sub>ji</sub></span>, since similarity doesn't care about order.</li>
+    <li><b>It's usually positive semi-definite.</b> That's what lets <code>kernel_ridge.py</code> ask for the fast Cholesky solver — and why it needs a fallback when the poly kernel rounds its way out of PSD.</li>
+    <li><b>It costs <span class="m">n<sup>2</sup></span>.</b> 10,000 points → 100 million entries → 800 MB in float64. This is the wall every kernel method hits, and it's why <code>kernel_matrix_bytes_</code> exists in four of these five classes: someone wanted that cost <em>measured</em>, not assumed.</li>
+  </ul>
+
+  <div class="good">
+    <b>The sentence that unlocks the codebase</b>
+    <p style="margin:0">Once <span class="m">K</span> exists, none of these algorithms ever look at your data again. Kernel ridge solves a linear system in <span class="m">K</span>. The SVM indexes into <span class="m">K</span>. KPCA takes eigenvectors of <span class="m">K</span>. Kernel KNN subtracts entries of <span class="m">K</span>. <b>The data is gone.</b> Only the table remains. Say this in an exam and you have shown you understand kernel methods.</p>
+  </div>
+
+  <details class="deep">
+    <summary>Why the answer is always "a weighted sum of training points"<span class="tag">representer theorem</span></summary>
+    <div class="dbody">
+      <p>Look at the prediction line in three different files:</p>
+      <table class="tbl lines">
+        <tr><td>K_test @ self.alpha</td><td>kernel_ridge.py</td></tr>
+        <tr><td>K_test @ (self.alpha * self.y_train) + self.b</td><td>kernel_svm.py</td></tr>
+        <tr><td>K_test_centered @ self.eigenvectors</td><td>kpca.py</td></tr>
+      </table>
+      <p>All three are the same shape: <b>a row of kernel values against the training set, dotted with one learned coefficient per training point</b>.</p>
+      <div class="mblock">f(x) <span class="op">=</span> Σ<sub>i</sub> α<sub>i</sub> k(x<sub>i</sub>, x)
+        <small>the only form the answer is ever allowed to take</small></div>
+      <p>This isn't a coincidence or a convention — it's a theorem (the representer theorem). For this family of problems, the optimal solution provably lies in the span of the training points. So the entire learning problem collapses from "find a function" down to "find <span class="m">n</span> numbers." Those <span class="m">n</span> numbers are <code>self.alpha</code>. Every model in this codebase is a different way of computing them:</p>
+      <ul>
+        <li><b>Ridge:</b> solve a linear system → <code>solve(A, y)</code></li>
+        <li><b>SVM:</b> iterate a constrained optimiser → <code>_run_smo()</code></li>
+        <li><b>KPCA:</b> take eigenvectors → <code>eigh(K_centered)</code></li>
+        <li><b>KNN:</b> don't learn them at all; set them to 1/k for the neighbours and 0 for everyone else</li>
+      </ul>
+      <p>That last line reframes KNN as a kernel method with hard-coded, data-dependent <span class="m">α</span>. Worth having ready.</p>
+    </div>
+  </details>
+
+  <div class="step" data-step="concepts">
+    <input type="checkbox" id="ck-concepts"><label for="ck-concepts">I can explain the kernel trick without saying the words "higher dimensional" and stopping there.</label>
+  </div>
+</section>
+
+<!-- ---------------- ARCHITECTURE ---------------- -->
+<section id="s-arch">
+  <div class="sechead">
+    <div class="eyebrow">02 — How the files connect</div>
+    <h2>One supplier, four customers.</h2>
+    <p class="lede"><code>kernels.py</code> is the only file that knows what a kernel is. The other four just order matrices from it.</p>
+  </div>
+
+  <div class="lab">
+    <svg viewBox="0 0 700 400" role="img" aria-label="Diagram: kernels.py supplies four model files">
+      <defs>
+        <marker id="a2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 z" fill="#5a4f9e"/>
+        </marker>
+      </defs>
+
+      <!-- supplier -->
+      <rect x="222" y="14" width="256" height="118" rx="12" fill="#1f2333" stroke="#f0a44a" stroke-width="1.5"/>
+      <text x="350" y="38" text-anchor="middle" fill="#f2c75c" font-family="ui-monospace" font-size="14">utils/kernels.py</text>
+      <line x1="240" y1="48" x2="460" y2="48" stroke="#2c3145"/>
+      <text x="240" y="68" fill="#8ecfff" font-family="ui-monospace" font-size="11.5">linear_kernel · polynomial_kernel · rbf_kernel</text>
+      <text x="240" y="88" fill="#c3e88d" font-family="ui-monospace" font-size="11.5">compute_kernel_matrix(X, Y, type)</text>
+      <text x="240" y="106" fill="#c3e88d" font-family="ui-monospace" font-size="11.5">kernel_diagonal(X, type)</text>
+      <text x="240" y="124" fill="#c3e88d" font-family="ui-monospace" font-size="11.5">center_kernel_matrix(K, K_train)</text>
+
+      <!-- bus -->
+      <line x1="350" y1="132" x2="350" y2="166" stroke="#5a4f9e" stroke-width="1.5"/>
+      <line x1="90" y1="166" x2="610" y2="166" stroke="#5a4f9e" stroke-width="1.5"/>
+      <text x="360" y="154" fill="#8b90a8" font-family="system-ui" font-size="11">returns a matrix of numbers — nothing else</text>
+
+      <!-- customers -->
+      <g>
+        <line x1="90" y1="166" x2="90" y2="200" stroke="#5a4f9e" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="14" y="204" width="152" height="102" rx="10" fill="#181b28" stroke="#2c3145"/>
+        <text x="90" y="226" text-anchor="middle" fill="#e8d9b0" font-family="ui-monospace" font-size="11.5">kernel_ridge.py</text>
+        <text x="90" y="248" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">solves a linear</text>
+        <text x="90" y="263" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">system in K</text>
+        <text x="90" y="288" text-anchor="middle" fill="#4fbf8b" font-family="ui-monospace" font-size="10.5">O(n³) once</text>
+      </g>
+      <g>
+        <line x1="263" y1="166" x2="263" y2="200" stroke="#5a4f9e" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="187" y="204" width="152" height="102" rx="10" fill="#181b28" stroke="#2c3145"/>
+        <text x="263" y="226" text-anchor="middle" fill="#e8d9b0" font-family="ui-monospace" font-size="11.5">kernel_svm.py</text>
+        <text x="263" y="248" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">iterates on K,</text>
+        <text x="263" y="263" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">two α at a time</text>
+        <text x="263" y="288" text-anchor="middle" fill="#4fbf8b" font-family="ui-monospace" font-size="10.5">O(n²) per epoch</text>
+      </g>
+      <g>
+        <line x1="437" y1="166" x2="437" y2="200" stroke="#5a4f9e" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="361" y="204" width="152" height="102" rx="10" fill="#181b28" stroke="#2c3145"/>
+        <text x="437" y="226" text-anchor="middle" fill="#e8d9b0" font-family="ui-monospace" font-size="11.5">kpca.py</text>
+        <text x="437" y="248" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">centres K, then</text>
+        <text x="437" y="263" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">eigendecomposes it</text>
+        <text x="437" y="288" text-anchor="middle" fill="#4fbf8b" font-family="ui-monospace" font-size="10.5">O(n³) once</text>
+      </g>
+      <g>
+        <line x1="610" y1="166" x2="610" y2="200" stroke="#5a4f9e" stroke-width="1.5" marker-end="url(#a2)"/>
+        <rect x="534" y="204" width="152" height="102" rx="10" fill="#181b28" stroke="#2c3145"/>
+        <text x="610" y="226" text-anchor="middle" fill="#e8d9b0" font-family="ui-monospace" font-size="11.5">kernel_knn.py</text>
+        <text x="610" y="248" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">turns K into</text>
+        <text x="610" y="263" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">distances</text>
+        <text x="610" y="288" text-anchor="middle" fill="#f0a44a" font-family="ui-monospace" font-size="10.5">no training at all</text>
+      </g>
+
+      <!-- kpca extra dep -->
+      <path d="M513,255 C560,255 560,340 470,340" fill="none" stroke="#2c3145" stroke-width="1.3" stroke-dasharray="3 3"/>
+      <rect x="318" y="322" width="152" height="36" rx="8" fill="#181b28" stroke="#2c3145" stroke-dasharray="3 3"/>
+      <text x="394" y="345" text-anchor="middle" fill="#626880" font-family="ui-monospace" font-size="11">logistic_regression.py</text>
+      <text x="300" y="380" text-anchor="middle" fill="#626880" font-family="system-ui" font-size="10.5">not supplied to me — KPCAClassifier imports it at call time</text>
+    </svg>
+    <div class="figcap"><b>How to read it.</b> Gold box = the supplier. The purple line is a one-way street: <code>kernels.py</code> imports nothing from the models and knows nothing about them. It hands back a NumPy array and stops caring. Each customer box names the one operation it performs on that array — that operation <em>is</em> the algorithm.</div>
+  </div>
+
+  <h3>The four-line contract every model obeys</h3>
+  <p>Once you see this shape you can read any of the four files in about ninety seconds, because they are all the same file with one line swapped.</p>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">fit</span>(<span class="c-self">self</span>, X, y):
+    <span class="c-self">self</span>.X_train = X.copy()             <span class="c-cm"># 1. keep the data — prediction needs it</span>
+    K = compute_kernel_matrix(X, ...)     <span class="c-cm"># 2. build the n×n table</span>
+    <span class="c-self">self</span>.alpha = &lt;<span class="c-str">the one interesting line</span>&gt;  <span class="c-cm"># 3. THE ALGORITHM</span>
+
+<span class="c-kw">def</span> <span class="c-fn">predict</span>(<span class="c-self">self</span>, X):
+    K_test = compute_kernel_matrix(X, <span class="c-self">self</span>.X_train, ...)  <span class="c-cm"># m×n, test vs train</span>
+    <span class="c-kw">return</span> K_test @ <span class="c-self">self</span>.alpha                          <span class="c-cm"># the representer form</span></code></pre>
+
+  <div class="note">
+    <b>The shape rule that prevents most bugs</b>
+    <p style="margin:0"><code>compute_kernel_matrix(X)</code> with one argument gives you <b>n×n</b> (train vs itself). <code>compute_kernel_matrix(X_test, X_train)</code> with two gives you <b>m×n</b> (test rows, train columns). Order matters: rows follow the first argument. Every <code>predict</code> in this codebase puts test first and train second, so <code>K_test @ alpha</code> is (m×n)·(n,) → (m,) — one prediction per test point. If you ever flip those arguments the shapes still might multiply, and you will get silent nonsense.</p>
+  </div>
+
+  <div class="step" data-step="arch">
+    <input type="checkbox" id="ck-arch"><label for="ck-arch">I can name the one line that differs between the four model files.</label>
+  </div>
+</section>
+
+<!-- ---------------- KERNELS.PY ---------------- -->
+<section id="s-kernels">
+  <div class="sechead">
+    <div class="eyebrow">03 — utils/kernels.py</div>
+    <h2>The supplier: three kernels and three utilities.</h2>
+    <p class="lede">This is the file to know cold. If you can map each function here to its formula, the other four files are bookkeeping.</p>
+  </div>
+
+  <div class="filebadge"><i style="background:#f2c75c">K</i> utils/kernels.py</div>
+  <div class="krole">Role in the pipeline: <b>builds K</b> — and provides two shortcuts for reading it cheaply.</div>
+
+  <!-- LINEAR -->
+  <h3>linear_kernel — the control condition</h3>
+  <div class="mblock">k(x, z) <span class="op">=</span> x<sup>⊤</sup>z <span class="op">+</span> c
+    <small>feature map: φ(x) = x. No transformation at all.</small></div>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">linear_kernel</span>(X, Y=<span class="c-kw">None</span>, c=<span class="c-num">0.0</span>):
+    <span class="c-kw">if</span> Y <span class="c-kw">is None</span>:
+        Y = X
+    <span class="c-kw">return</span> X @ Y.T + c</code></pre>
+  <p>The feature map is the identity — this kernel goes nowhere. That makes it the <b>baseline you report against</b>: if RBF doesn't beat linear on your data, the data was linearly separable and the whole apparatus bought you nothing. It's also the honest reference point for the memory argument, because linear kernel methods have an <span class="m">O(d<sup>2</sup>)</span> primal alternative while RBF does not.</p>
+
+  <details>
+    <summary>Line by line<span class="tag">4 lines</span></summary>
+    <div class="dbody">
+      <table class="tbl lines">
+        <tr><th>Line</th><th>What it does, and why</th></tr>
+        <tr><td>Y=None</td><td>The default that makes <code>k(X, X)</code> and <code>k(X_test, X_train)</code> the same function. One call signature, two jobs.</td></tr>
+        <tr><td>if Y is None: Y = X</td><td>"No second argument" means "compare X with itself." This is the n×n / m×n switch from the shape rule.</td></tr>
+        <tr><td>X @ Y.T</td><td>The whole point. <code>X</code> is (n×d), <code>Y.T</code> is (d×m), so the product is (n×m) and entry (i,j) is exactly <span class="m">x<sub>i</sub><span class="op">·</span>y<sub>j</sub></span> — every pairwise dot product, in one BLAS call. Writing it as a Python double loop would be the same maths and roughly a hundred times slower.</td></tr>
+        <tr><td>+ c</td><td>NumPy broadcasting adds the scalar to every entry. Conceptually it's an offset in the kernel; with <span class="m">c=0</span> (the default) it's a pure dot product.</td></tr>
+      </table>
+    </div>
+  </details>
+
+  <!-- POLY -->
+  <h3>polynomial_kernel — finite, explicit, and it can explode</h3>
+  <div class="mblock">k(x, z) <span class="op">=</span> (α · x<sup>⊤</sup>z <span class="op">+</span> c)<sup>d</sup>
+    <small>feature map: all monomials of the coordinates up to degree d. Finite, but large.</small></div>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">polynomial_kernel</span>(X, Y=<span class="c-kw">None</span>, degree=<span class="c-num">3</span>, alpha=<span class="c-num">1.0</span>, c=<span class="c-num">1.0</span>):
+    <span class="c-kw">if</span> Y <span class="c-kw">is None</span>:
+        Y = X
+    <span class="c-kw">return</span> (alpha * X @ Y.T + c) ** degree</code></pre>
+  <p>Unlike RBF, this kernel's feature space is real and countable. Expanding <span class="m">(x<span class="op">·</span>z <span class="op">+</span> 1)<sup>2</sup></span> for 2-D points gives you a feature map containing <span class="m">x<sub>1</sub><sup>2</sup>, x<sub>2</sub><sup>2</sup>, x<sub>1</sub>x<sub>2</sub>, x<sub>1</sub>, x<sub>2</sub>, 1</span>. Products of coordinates — that's how it becomes nonlinear.</p>
+
+  <div class="warn">
+    <b>The one that causes trouble downstream</b>
+    <p style="margin:0">Look at the scale. If <span class="m">x<span class="op">·</span>z</span> is around 20 and <span class="m">d=3</span>, then <span class="m">k ≈ 21<sup>3</sup> ≈ 9261</span>. Raise the degree and the entries of <span class="m">K</span> grow without bound. Two consequences you can point to as code:
+    <br>• <code>kernel_ridge.py</code> has a <code>try/except</code> fallback whose comment says exactly this — huge dynamic range makes <span class="m">K</span> lose positive-definiteness to rounding, and the Cholesky solver refuses.
+    <br>• <code>kpca.py</code> guards with <code>if self.eigenvalues[i] > 1e-10</code> and then <code>nan_to_num</code>, for the same reason: a not-quite-PSD matrix produces slightly negative eigenvalues.
+    <br>Neither guard is defensive padding. Both exist because of this one line.</p>
+  </div>
+
+  <!-- RBF -->
+  <h3>rbf_kernel — the one that does the work</h3>
+  <div class="mblock">k(x, z) <span class="op">=</span> exp( <span class="op">−</span>γ ‖x <span class="op">−</span> z‖<sup>2</sup> ),&nbsp;&nbsp; γ <span class="op">=</span> <span class="frac"><span>1</span><span>2σ<sup>2</sup></span></span>
+    <small>feature map: infinite-dimensional. Value is always in (0, 1]. Equals 1 only when x = z.</small></div>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">rbf_kernel</span>(X, Y=<span class="c-kw">None</span>, gamma=<span class="c-kw">None</span>, sigma=<span class="c-kw">None</span>):
+    <span class="c-kw">if</span> Y <span class="c-kw">is None</span>:
+        Y = X
+
+    <span class="c-kw">if</span> gamma <span class="c-kw">is not None</span>:
+        <span class="c-kw">pass</span>
+    <span class="c-kw">elif</span> sigma <span class="c-kw">is not None</span>:
+        gamma = <span class="c-num">1.0</span> / (<span class="c-num">2.0</span> * sigma ** <span class="c-num">2</span>)
+    <span class="c-kw">else</span>:
+        gamma = <span class="c-num">1.0</span> / (<span class="c-num">2.0</span> * X.shape[<span class="c-num">1</span>])
+
+    X_sq = np.sum(X ** <span class="c-num">2</span>, axis=<span class="c-num">1</span>).reshape(-<span class="c-num">1</span>, <span class="c-num">1</span>)
+    Y_sq = np.sum(Y ** <span class="c-num">2</span>, axis=<span class="c-num">1</span>).reshape(<span class="c-num">1</span>, -<span class="c-num">1</span>)
+    dist_sq = np.maximum(X_sq + Y_sq - <span class="c-num">2.0</span> * X @ Y.T, <span class="c-num">0.0</span>)
+    <span class="c-kw">return</span> np.exp(-gamma * dist_sq)</code></pre>
+
+  <p>Read <span class="m">γ</span> as <b>an inverse radius of influence</b>. Small <span class="m">γ</span> → a point's influence reaches far → <span class="m">K</span> is warm everywhere → the model is nearly linear and underfits. Large <span class="m">γ</span> → influence collapses to almost nothing → <span class="m">K</span> approaches the identity matrix → every point is its own island and the model memorises the training set. The heatmap at the top of this page is that sentence, animated.</p>
+
+  <details>
+    <summary>Line by line — including the three lines that look weird<span class="tag">the important one</span></summary>
+    <div class="dbody">
+      <table class="tbl lines">
+        <tr><th>Line</th><th>What it does, and why</th></tr>
+        <tr><td>if gamma is not None:
+    pass</td><td>A branch that does nothing, deliberately. It encodes a <b>precedence rule</b>: if the caller gave <code>gamma</code>, use it as-is and ignore <code>sigma</code>. Written as <code>pass</code> rather than restructured so the three-way priority reads top to bottom: gamma wins → else derive from sigma → else fall back to a default. Slightly unusual style, completely defensible.</td></tr>
+        <tr><td>gamma = 1.0 / (2.0 * sigma ** 2)</td><td>The textbook conversion between the two parameterisations of the same kernel. <span class="m">σ</span> is a width (a distance); <span class="m">γ</span> is its inverse-square. Same kernel, two dialects — the code accepts both.</td></tr>
+        <tr><td>gamma = 1.0 / (2.0 * X.shape[1])</td><td>The default when the caller gives neither. <code>X.shape[1]</code> is <span class="m">d</span>, the number of features, so this is <span class="m">γ = 1/(2d)</span>, i.e. <span class="m">σ<sup>2</sup> = d</span>. The reasoning: squared distances tend to grow with dimension, so the width should grow with dimension too, otherwise every kernel value would underflow to zero on high-dimensional data. <b>Say in your report that this is a heuristic default, not a tuned value.</b> It also differs from scikit-learn's default, which additionally divides by the variance of X — so don't claim the two libraries agree here.</td></tr>
+        <tr><td>X_sq = np.sum(X**2, axis=1).reshape(-1, 1)</td><td>The squared norm ‖x<sub>i</sub>‖² of each row, reshaped to a <b>column</b> (n×1).</td></tr>
+        <tr><td>Y_sq = np.sum(Y**2, axis=1).reshape(1, -1)</td><td>Same for Y, reshaped to a <b>row</b> (1×m). The two different reshapes are the entire trick of the next line.</td></tr>
+        <tr><td>X_sq + Y_sq - 2.0 * X @ Y.T</td><td>This is <span class="m">‖x <span class="op">−</span> z‖<sup>2</sup> <span class="op">=</span> ‖x‖<sup>2</sup> <span class="op">+</span> ‖z‖<sup>2</sup> <span class="op">−</span> 2x<span class="op">·</span>z</span> from Idea 1 — applied to <em>all pairs at once</em>. Adding an (n×1) column to a (1×m) row broadcasts into an (n×m) grid where entry (i,j) already contains ‖x<sub>i</sub>‖²+‖y<sub>j</sub>‖². Subtract the (n×m) matrix of dot products and every cell is a squared distance. No loop, one matmul.</td></tr>
+        <tr><td>np.maximum(..., 0.0)</td><td>A squared distance cannot be negative — but in floating point it can be, by about −1e−16, when two rows are identical or nearly so. Feed that to <code>exp(-gamma * dist_sq)</code> and you get a kernel value slightly <em>above</em> 1, which quietly breaks the PSD property that the solvers downstream depend on. This clamp is a one-word fix for a real bug.</td></tr>
+        <tr><td>np.exp(-gamma * dist_sq)</td><td>The formula, applied elementwise. Distance 0 → exp(0) = 1 (the diagonal). Large distance → exp(−big) → 0.</td></tr>
+      </table>
+      <div class="good"><b>Exam-ready</b><p style="margin:0">"Why not <code>np.linalg.norm</code> in a double loop?" Because that's <span class="m">O(n<sup>2</sup>)</span> Python-level iterations. The expansion turns the whole thing into one call to <code>X @ Y.T</code>, which is BLAS, which is compiled and multithreaded. Same numbers, different order of magnitude in runtime. The identity from Idea 1 is doing work here that is purely about speed.</p></div>
+    </div>
+  </details>
+
+  <!-- DISPATCHER -->
+  <h3>compute_kernel_matrix — the dispatcher</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">compute_kernel_matrix</span>(X, Y=<span class="c-kw">None</span>, kernel_type=<span class="c-str">'rbf'</span>, **kwargs):
+    <span class="c-kw">if</span> kernel_type == <span class="c-str">'linear'</span>:
+        <span class="c-kw">return</span> linear_kernel(X, Y, c=kwargs.get(<span class="c-str">'c'</span>, <span class="c-num">0.0</span>))
+    <span class="c-kw">elif</span> kernel_type == <span class="c-str">'poly'</span>:
+        <span class="c-kw">return</span> polynomial_kernel(X, Y, degree=kwargs.get(<span class="c-str">'degree'</span>, <span class="c-num">3</span>), ...)
+    <span class="c-kw">elif</span> kernel_type == <span class="c-str">'rbf'</span>:
+        <span class="c-kw">return</span> rbf_kernel(X, Y, gamma=kwargs.get(<span class="c-str">'gamma'</span>, <span class="c-kw">None</span>), ...)
+    <span class="c-kw">else</span>:
+        <span class="c-kw">raise</span> <span class="c-fn">ValueError</span>(<span class="c-str">f"Unknown kernel type: {kernel_type}"</span>)</code></pre>
+  <p>A string selects a function. That's it — but it's the reason every model class can carry <code>kernel_type='rbf', **kernel_params</code> in its constructor and never contain a single line of kernel maths. Swapping kernels across an entire experiment is one string.</p>
+  <p>Note <code>kwargs.get('c', 0.0)</code> against <code>kwargs.get('c', 1.0)</code> — the <b>same parameter name has different defaults per kernel</b>. Linear defaults to <span class="m">c=0</span> (a pure dot product); poly defaults to <span class="m">c=1</span> (which is what lets lower-degree terms into the feature map). Reading <code>c</code> as "one parameter" would be a mistake.</p>
+  <p>The <code>else: raise ValueError</code> matters more than it looks. Without it a typo like <code>kernel_type='RBF'</code> would fall through and return <code>None</code>, and you'd be debugging a crash three files away. Failing at the point of the mistake is a design decision.</p>
+
+  <!-- DIAGONAL -->
+  <h3>kernel_diagonal — the memory optimisation you should brag about</h3>
+  <p>Sometimes you only need <span class="m">k(x<sub>i</sub>, x<sub>i</sub>)</span> — the diagonal. The naive route builds all <span class="m">n<sup>2</sup></span> entries and reads <span class="m">n</span> of them, throwing away 99.99% of the work.</p>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">kernel_diagonal</span>(X, kernel_type=<span class="c-str">'rbf'</span>, **kwargs):
+    <span class="c-cm">"""diag(K(X, X)) in closed form: O(n*d) time, O(n) memory."""</span>
+    sq = np.sum(X ** <span class="c-num">2</span>, axis=<span class="c-num">1</span>)
+
+    <span class="c-kw">if</span> kernel_type == <span class="c-str">'linear'</span>:
+        <span class="c-kw">return</span> sq + kwargs.get(<span class="c-str">'c'</span>, <span class="c-num">0.0</span>)
+    <span class="c-kw">elif</span> kernel_type == <span class="c-str">'poly'</span>:
+        <span class="c-kw">return</span> (kwargs.get(<span class="c-str">'alpha'</span>, <span class="c-num">1.0</span>) * sq + kwargs.get(<span class="c-str">'c'</span>, <span class="c-num">1.0</span>)) ** kwargs.get(<span class="c-str">'degree'</span>, <span class="c-num">3</span>)
+    <span class="c-kw">elif</span> kernel_type == <span class="c-str">'rbf'</span>:
+        <span class="c-kw">return</span> np.ones(X.shape[<span class="c-num">0</span>], dtype=np.float64)</code></pre>
+  <p>Each branch is the kernel formula with <span class="m">z</span> set to <span class="m">x</span>, simplified on paper first:</p>
+  <table class="tbl">
+    <tr><th>Kernel</th><th>k(x, x) worked out</th><th>Code</th></tr>
+    <tr><td>linear</td><td><span class="m">x<span class="op">·</span>x <span class="op">+</span> c <span class="op">=</span> ‖x‖<sup>2</sup> <span class="op">+</span> c</span></td><td><code>sq + c</code></td></tr>
+    <tr><td>poly</td><td><span class="m">(α‖x‖<sup>2</sup> <span class="op">+</span> c)<sup>d</sup></span></td><td><code>(alpha*sq + c) ** degree</code></td></tr>
+    <tr><td>rbf</td><td><span class="m">exp(<span class="op">−</span>γ·0) <span class="op">=</span> 1</span>, always</td><td><code>np.ones(n)</code></td></tr>
+  </table>
+  <p>The RBF branch is the one to point at. The distance from a point to itself is zero, <span class="m">exp(0)=1</span>, so the answer is a vector of ones — <b>no arithmetic performed, no data read</b>. It is worth saying plainly that <code>sq</code> is computed at the top and then unused by that branch; that's a negligible <span class="m">O(nd)</span> cost paid for keeping the function readable.</p>
+  <div class="good">
+    <b>Where this pays off</b>
+    <p style="margin:0"><code>kernel_knn.py</code> calls this instead of <code>compute_kernel_matrix</code> in <code>fit</code>, and its comment says why: <em>"avoids an n x n matrix built just to read it."</em> That is why <code>KernelKNNClassifier.kernel_matrix_bytes_</code> reports <span class="m">O(n)</span> bytes while every other model reports <span class="m">O(n<sup>2</sup>)</span>. When you present the memory comparison table, KNN's number will look anomalous and you will be asked about it. This function is the answer.</p>
+  </div>
+
+  <!-- CENTERING -->
+  <h3>center_kernel_matrix — subtracting a mean you cannot compute</h3>
+  <p>PCA requires mean-centred data. KPCA needs the data centred <b>in feature space</b> — but you can't compute <span class="m">φ̄ = <span class="frac"><span>1</span><span>n</span></span> Σ φ(x<sub>i</sub>)</span>, because you can't compute <span class="m">φ</span>. Idea 2 again.</p>
+  <p>The fix: work out algebraically what centring <em>would do to the dot products</em>, and apply that to <span class="m">K</span> directly.</p>
+  <div class="mblock">K<sub>c</sub> <span class="op">=</span> K <span class="op">−</span> 1<sub>n</sub>K <span class="op">−</span> K1<sub>n</sub> <span class="op">+</span> 1<sub>n</sub>K1<sub>n</sub>
+    <small>1<sub>n</sub> is the n×n matrix filled entirely with 1/n</small></div>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">center_kernel_matrix</span>(K, K_train=<span class="c-kw">None</span>):
+    n = K.shape[<span class="c-num">0</span>]
+    <span class="c-kw">if</span> K_train <span class="c-kw">is None</span>:
+        one_n = np.ones((n, n)) / n
+        <span class="c-kw">return</span> K - one_n @ K - K @ one_n + one_n @ K @ one_n
+    <span class="c-kw">else</span>:
+        n_train = K_train.shape[<span class="c-num">0</span>]
+        one_n_test = np.ones((K.shape[<span class="c-num">0</span>], n_train)) / n_train
+        one_n_train = np.ones((n_train, n_train)) / n_train
+        <span class="c-kw">return</span> (K - one_n_test @ K_train
+                - K @ one_n_train
+                + one_n_test @ K_train @ one_n_train)</code></pre>
+
+  <details class="deep">
+    <summary>Where those four terms come from — the derivation in four lines<span class="tag">worth 10 minutes</span></summary>
+    <div class="dbody">
+      <p>Centred feature vector: <span class="m">φ̃(x<sub>i</sub>) <span class="op">=</span> φ(x<sub>i</sub>) <span class="op">−</span> φ̄</span>. The centred kernel is its dot product with another one:</p>
+      <div class="mblock" style="text-align:left; font-size:16px; line-height:2.1">
+        K̃<sub>ij</sub> <span class="op">=</span> (φ<sub>i</sub> <span class="op">−</span> φ̄)<span class="op">·</span>(φ<sub>j</sub> <span class="op">−</span> φ̄)<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="op">=</span> φ<sub>i</sub><span class="op">·</span>φ<sub>j</sub> <span class="op">−</span> φ<sub>i</sub><span class="op">·</span>φ̄ <span class="op">−</span> φ̄<span class="op">·</span>φ<sub>j</sub> <span class="op">+</span> φ̄<span class="op">·</span>φ̄
+      </div>
+      <p>Now translate each of the four terms back into things you can actually compute:</p>
+      <table class="tbl">
+        <tr><th>Term</th><th>Becomes</th><th>Meaning in plain words</th><th>Code</th></tr>
+        <tr><td><span class="m">φ<sub>i</sub><span class="op">·</span>φ<sub>j</sub></span></td><td><span class="m">K<sub>ij</sub></span></td><td>the raw entry</td><td><code>K</code></td></tr>
+        <tr><td><span class="m">φ̄<span class="op">·</span>φ<sub>j</sub></span></td><td><span class="frac"><span>1</span><span>n</span></span><span class="m">Σ<sub>a</sub> K<sub>aj</sub></span></td><td>mean of column j</td><td><code>one_n @ K</code></td></tr>
+        <tr><td><span class="m">φ<sub>i</sub><span class="op">·</span>φ̄</span></td><td><span class="frac"><span>1</span><span>n</span></span><span class="m">Σ<sub>b</sub> K<sub>ib</sub></span></td><td>mean of row i</td><td><code>K @ one_n</code></td></tr>
+        <tr><td><span class="m">φ̄<span class="op">·</span>φ̄</span></td><td><span class="frac"><span>1</span><span>n<sup>2</sup></span></span><span class="m">Σ<sub>ab</sub> K<sub>ab</sub></span></td><td>grand mean of the whole table</td><td><code>one_n @ K @ one_n</code></td></tr>
+      </table>
+      <p>So the intimidating formula is just: <b>subtract the row mean, subtract the column mean, add back the grand mean</b> (added back once because subtracting both means removed it twice). It is exactly the double-centring you'd do to a two-way table in statistics.</p>
+      <p><b>Now the <code>else</code> branch.</b> A test point must be centred using the <em>training</em> mean, never its own — otherwise the transform depends on which test points happen to arrive together, and your test set has leaked into itself. That is why every mean in the second branch is divided by <code>n_train</code> and computed from <code>K_train</code>, not from <code>K</code>. Same formula, all statistics sourced from training. This is the kernel version of "fit the scaler on train, apply it to test."</p>
+      <div class="note"><b>Consequence you can predict</b><p style="margin:0">After centring, the columns of <span class="m">K<sub>c</sub></span> sum to zero, which forces at least one eigenvalue to be exactly zero. So KPCA can never extract more than <span class="m">n<span class="op">−</span>1</span> components — and sure enough, <code>kpca.py</code> line <code>n_comp = min(self.n_components, n - 1)</code>. That <code>-1</code> is not arbitrary; it is this fact.</p></div>
+    </div>
+  </details>
+
+  <div class="step" data-step="kernels">
+    <input type="checkbox" id="ck-kernels"><label for="ck-kernels">I can write each kernel's formula and point to the exact line that implements it.</label>
+  </div>
+</section>
+
+<!-- ---------------- KERNEL RIDGE ---------------- -->
+<section id="s-ridge">
+  <div class="sechead">
+    <div class="eyebrow">04 — kernel_ridge.py</div>
+    <h2>The whole algorithm is one line.</h2>
+    <p class="lede">No iteration, no convergence, no random seed. Solve one linear system and you're done. Start here — it's the cleanest illustration of the representer form.</p>
+  </div>
+
+  <div class="filebadge"><i style="background:#26307a; color:#fff">R</i> models/kernel_ridge.py</div>
+  <div class="krole">What it does to K: <b>inverts it</b> (after adding λ to the diagonal).</div>
+
+  <div class="mblock">α <span class="op">=</span> (K <span class="op">+</span> λI)<sup>−1</sup> y &nbsp;&nbsp;&nbsp;→&nbsp;&nbsp;&nbsp; g(x) <span class="op">=</span> Σ<sub>i</sub> α<sub>i</sub> k(x<sub>i</sub>, x)
+    <small>the file's own docstring, verbatim — the code is a transcription of it</small></div>
+
+<pre><code><span class="c-kw">def</span> <span class="c-fn">fit</span>(<span class="c-self">self</span>, X, y):
+    <span class="c-self">self</span>.X_train = X.copy()
+    n = X.shape[<span class="c-num">0</span>]
+
+    K = compute_kernel_matrix(X, kernel_type=<span class="c-self">self</span>.kernel_type, **<span class="c-self">self</span>.kernel_params)
+    <span class="c-self">self</span>.kernel_matrix_bytes_ = <span class="c-fn">int</span>(K.nbytes)  <span class="c-cm"># O(n^2) footprint</span>
+    A = K + <span class="c-self">self</span>.reg_lambda * np.eye(n)
+    <span class="c-kw">try</span>:
+        <span class="c-self">self</span>.alpha = solve(A, y, assume_a=<span class="c-str">'pos'</span>)
+    <span class="c-kw">except</span> <span class="c-fn">Exception</span>:
+        <span class="c-cm"># Poly kernels can lose positive-definiteness to rounding.</span>
+        <span class="c-self">self</span>.alpha = np.linalg.lstsq(A, y, rcond=<span class="c-kw">None</span>)[<span class="c-num">0</span>]
+
+    <span class="c-kw">return</span> <span class="c-self">self</span></code></pre>
+
+  <details>
+    <summary>Line by line<span class="tag">read this one closely</span></summary>
+    <div class="dbody">
+      <table class="tbl lines">
+        <tr><th>Line</th><th>What it does, and why</th></tr>
+        <tr><td>self.X_train = X.copy()</td><td>Prediction needs the training points to build <code>K_test</code> against — the representer form has no other way to express the answer. <code>.copy()</code> means a later mutation of the caller's array can't silently corrupt a fitted model. Cheap insurance.</td></tr>
+        <tr><td>K = compute_kernel_matrix(X, ...)</td><td>One argument → n×n. This is the only place the raw data is touched during fitting.</td></tr>
+        <tr><td>self.kernel_matrix_bytes_ = int(K.nbytes)</td><td>Records the actual memory this fit consumed. The trailing underscore is the scikit-learn convention for "learned during fit, not a constructor argument." <code>int()</code> converts the NumPy integer to a plain Python one so it serialises cleanly into a results table.</td></tr>
+        <tr><td>A = K + self.reg_lambda * np.eye(n)</td><td><b>The regularisation.</b> Two ways to read it, both correct and both worth having. <b>Statistical:</b> it's the ridge penalty λ‖w‖², which shrinks the fit and stops it chasing noise. <b>Numerical:</b> <span class="m">K</span> is often singular or nearly so; adding λ to every diagonal entry lifts every eigenvalue by λ, which guarantees the system is invertible. Set λ = 0 and this line — and the solver — falls over on most real data. It is doing two jobs at once.</td></tr>
+        <tr><td>solve(A, y, assume_a='pos')</td><td><code>assume_a='pos'</code> promises SciPy that <code>A</code> is symmetric positive-definite, so it uses <b>Cholesky</b> instead of general LU. Roughly half the operations, and better numerically. The promise is justified: a valid kernel gives a PSD <span class="m">K</span>, and +λI pushes it to strictly positive-definite. Note also that this <em>solves</em> the system — it never forms <span class="m">(K+λI)<sup>−1</sup></span>. Explicitly inverting a matrix to then multiply by a vector is slower and less accurate; the formula says "inverse", the code says "solve", and the code is right.</td></tr>
+        <tr><td>except Exception:</td><td>Reachable in practice, and the comment names the trigger: poly kernels. From the kernels.py section — degree-3 entries can reach thousands, the dynamic range wrecks the rounding, Cholesky hits a non-positive pivot and raises. Catching bare <code>Exception</code> is broad, but here it's a considered trade: this runs inside a sweep over many kernels and λ values, and losing an entire experiment to one bad configuration is worse than falling back.</td></tr>
+        <tr><td>np.linalg.lstsq(A, y, rcond=None)[0]</td><td>The safety net: least squares via SVD. Slower, but it returns a sensible answer even for a singular or ill-conditioned <code>A</code>. <code>[0]</code> because lstsq returns a 4-tuple (solution, residuals, rank, singular values) and only the first is wanted.</td></tr>
+      </table>
+      <div class="note"><b>The cost, in one sentence</b><p style="margin:0">Building <span class="m">K</span> is <span class="m">O(n<sup>2</sup>d)</span> time and <span class="m">O(n<sup>2</sup>)</span> memory; the Cholesky solve is <span class="m">O(n<sup>3</sup>)</span> time. That cubic term is why kernel ridge is exact and elegant and completely unusable past a few tens of thousands of points.</p></div>
+    </div>
+  </details>
+
+  <h3>predict — the representer form, undisguised</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">predict</span>(<span class="c-self">self</span>, X):
+    K_test = compute_kernel_matrix(X, <span class="c-self">self</span>.X_train, kernel_type=<span class="c-self">self</span>.kernel_type, **<span class="c-self">self</span>.kernel_params)
+    <span class="c-kw">return</span> K_test @ <span class="c-self">self</span>.alpha</code></pre>
+  <p>Two arguments → <code>K_test</code> is m×n: row <span class="m">i</span> holds the similarity of test point <span class="m">i</span> to every training point. Dot that row with <span class="m">α</span> and you get <span class="m">Σ<sub>i</sub> α<sub>i</sub> k(x<sub>i</sub>, x)</span> — the formula, exactly, with no bias term and no rearranging. If someone asks you to show them the representer theorem in code, show them this line.</p>
+
+  <h3>KernelRidgeClassifier — regression wearing a hat</h3>
+  <p>Ridge regression predicts real numbers. To make it classify, this wrapper regresses onto 0/1 targets and thresholds the output. It's a blunt instrument and it works.</p>
+  <table class="tbl">
+    <tr><th>Case</th><th>Targets</th><th>Decision</th><th>Code</th></tr>
+    <tr><td>2 classes</td><td><code>(y == classes_[1]).astype(float)</code> → 0 or 1</td><td>score ≥ 0.5</td><td><code>classes_[(scores >= 0.5).astype(int)]</code></td></tr>
+    <tr><td>&gt;2 classes</td><td>one 0/1 vector per class</td><td>whichever class scores highest</td><td><code>classes_[np.argmax(all_scores, axis=1)]</code></td></tr>
+  </table>
+  <p><b>One-vs-rest (OVR):</b> for <span class="m">C</span> classes, train <span class="m">C</span> separate regressors, each answering "is this class <span class="m">c</span>, yes or no?", then let the most confident one win. Note the cost: <span class="m">C</span> models means <span class="m">C</span> kernel matrices, which is exactly what <code>kernel_matrix_bytes_</code> sums up over <code>ovr_models_</code>.</p>
+
+  <div class="warn">
+    <b>The honest caveat, and you should volunteer it</b>
+    <p style="margin:0">These scores are not probabilities. Nothing constrains <code>predict</code>'s output to [0,1] — a test point far from everything can score 1.3 or −0.4. So <code>decision_scores</code> returning <code>[1.0 - s, s]</code> gives you two columns that are <em>usable</em> for ROC-AUC — which only needs a ranking, not calibration — but calling them class probabilities would be wrong. The docstring is careful about this: it says "Raw regression scores per class, for ROC-AUC." Match that wording in your report.</p>
+  </div>
+
+  <details>
+    <summary>Two small asymmetries in this file worth noticing<span class="tag">detail</span></summary>
+    <div class="dbody">
+      <ul>
+        <li><code>KernelRidgeRegression.__init__</code> sets <code>self.kernel_matrix_bytes_ = 0</code> as a plain attribute, then overwrites it in <code>fit</code>. <code>KernelRidgeClassifier</code> instead exposes it as a <b>@property</b> that sums over its sub-models. Same attribute name, two different mechanisms — the wrapper has no <span class="m">K</span> of its own, so it aggregates its children's. Calling it before <code>fit</code> raises, because <code>ovr_models_</code> is still <code>None</code>.</li>
+        <li>The binary branch trains <b>one</b> model, not two. Training "class A vs rest" and "class B vs rest" separately would be redundant — one score already ranks both. This is why <code>decision_scores</code> needs its special case: it must fabricate the second column as <code>1.0 - s</code> so the output has one column per class and lines up with <code>classes_</code>.</li>
+      </ul>
+    </div>
+  </details>
+
+  <div class="step" data-step="ridge">
+    <input type="checkbox" id="ck-ridge"><label for="ck-ridge">I can explain why <code>A = K + λI</code> is doing two separate jobs.</label>
+  </div>
+</section>
+
+<!-- ---------------- KERNEL SVM ---------------- -->
+<section id="s-svm">
+  <div class="sechead">
+    <div class="eyebrow">05 — kernel_svm.py</div>
+    <h2>The long one. But only three lines actually optimise.</h2>
+    <p class="lede">You're solving for one number per training point. Most of them end up zero. The ones that don't are the support vectors.</p>
+  </div>
+
+  <div class="filebadge"><i style="background:#9c5b95; color:#fff">S</i> models/kernel_svm.py</div>
+  <div class="krole">What it does to K: <b>indexes into it</b>, one row at a time, thousands of times.</div>
+
+  <h3>Why the dual, and why two at a time</h3>
+  <p>An ordinary SVM asks "what weight vector <span class="m">w</span> gives the widest margin?" The dual asks the equivalent question: <b>"how hard does each training point push on the boundary?"</b> That push is <span class="m">α<sub>i</sub></span>. And the payoff is that the data now only appears inside <span class="m">k(x<sub>i</sub>, x<sub>j</sub>)</span> — never alone. Idea 2 applies, so the kernel goes in.</p>
+  <div class="mblock">f(x) <span class="op">=</span> Σ<sub>i</sub> α<sub>i</sub> y<sub>i</sub> k(x<sub>i</sub>, x) <span class="op">+</span> b, &nbsp;&nbsp; subject to &nbsp; 0 ≤ α<sub>i</sub> ≤ C &nbsp; and &nbsp; Σ<sub>i</sub> α<sub>i</sub> y<sub>i</sub> <span class="op">=</span> 0
+    <small>the top line is decision_function(); the two constraints are why SMO exists</small></div>
+  <p>Look at that equality constraint: <span class="m">Σ α<sub>i</sub> y<sub>i</sub> = 0</span>. It means you <b>cannot change one α by itself</b> — you'd break it instantly. The smallest legal move is <b>two at a time</b>: nudge <span class="m">α<sub>i</sub></span> up and <span class="m">α<sub>j</sub></span> down by a compensating amount. That's SMO in one sentence: pick two, optimise them exactly (a 1-D problem with a closed-form answer), repeat.</p>
+
+  <h3>_run_smo, in order</h3>
+
+  <h4>1. The error</h4>
+<pre><code>E_i = <span class="c-fn">float</span>(np.sum(alpha * y * K[i, :])) + b - y[i]</code></pre>
+  <p>How wrong the current model is about point <span class="m">i</span>: <span class="m">E<sub>i</sub> = f(x<sub>i</sub>) <span class="op">−</span> y<sub>i</sub></span>. Note that <code>np.sum(alpha * y * K[i, :])</code> <b>is</b> <span class="m">Σ<sub>j</sub> α<sub>j</sub> y<sub>j</sub> k(x<sub>j</sub>, x<sub>i</sub>)</span> — the same representer sum as everywhere else, just against a stored row of <span class="m">K</span> instead of a freshly computed one. Because <span class="m">α</span> is mostly zeros, most terms contribute nothing; the code sums them anyway, which is <span class="m">O(n)</span> per point and <span class="m">O(n<sup>2</sup>)</span> per epoch. A production SMO caches these errors. This one doesn't, and that's a legitimate thing to name as a limitation.</p>
+
+  <h4>2. The KKT check — "is this point misfiled?"</h4>
+<pre><code><span class="c-kw">if</span> ((y[i] * E_i &lt; -<span class="c-self">self</span>.tol <span class="c-kw">and</span> alpha[i] &lt; <span class="c-self">self</span>.C) <span class="c-kw">or</span>
+        (y[i] * E_i &gt; <span class="c-self">self</span>.tol <span class="c-kw">and</span> alpha[i] &gt; <span class="c-num">0</span>)):</code></pre>
+  <p>This looks arbitrary until you expand it. Since <span class="m">y<sub>i</sub> = ±1</span>, we have <span class="m">y<sub>i</sub><sup>2</sup> = 1</span>, so:</p>
+  <div class="mblock">y<sub>i</sub>E<sub>i</sub> <span class="op">=</span> y<sub>i</sub>(f(x<sub>i</sub>) <span class="op">−</span> y<sub>i</sub>) <span class="op">=</span> y<sub>i</sub>f(x<sub>i</sub>) <span class="op">−</span> 1
+    <small>so y·E measures the signed margin, offset by 1</small></div>
+  <p>Which turns the condition into plain English:</p>
+  <table class="tbl">
+    <tr><th>Situation</th><th>Meaning</th><th>α should be</th><th>Violation if</th></tr>
+    <tr><td><span class="m">y<sub>i</sub>E<sub>i</sub> &lt; 0</span></td><td>margin &lt; 1 — point is inside the margin or misclassified</td><td>maxed out at <span class="m">C</span></td><td><code>alpha[i] &lt; C</code></td></tr>
+    <tr><td><span class="m">y<sub>i</sub>E<sub>i</sub> &gt; 0</span></td><td>margin &gt; 1 — point is safely outside</td><td>zero — it shouldn't push at all</td><td><code>alpha[i] &gt; 0</code></td></tr>
+  </table>
+  <p>If neither is true, the point is already correctly filed; skip it. <code>tol</code> is the tolerance band that stops the loop chasing floating-point dust forever.</p>
+
+  <h4>3. Pick a partner — the "simplified" bit</h4>
+<pre><code>j = i
+<span class="c-kw">while</span> j == i:
+    j = rng.randint(<span class="c-num">0</span>, n)</code></pre>
+  <p>Real SMO (Platt 1998) uses a heuristic to choose the <span class="m">j</span> that makes the most progress. This picks at random. It converges more slowly and it fits in three lines — that trade is the entire meaning of the word "simplified" in the class docstring.</p>
+  <div class="good">
+    <b>The reproducibility point the docstring makes for you</b>
+    <p style="margin:0">The class docstring calls out that <code>j</code> comes from a per-model <code>RandomState</code>, "not the unseeded global np.random, so fits are reproducible." That's a real distinction: <code>np.random.randint</code> would draw from a global stream that any other library could advance, making your results unrepeatable and your ablation study meaningless. And <code>KernelSVMClassifier._make(seed_offset)</code> passes <code>random_state + ci</code>, so each one-vs-rest sub-problem gets its <em>own</em> seed — reproducible, but not accidentally identical across classes.</p>
+  </div>
+
+  <h4>4. L and H — the scary-looking part that isn't</h4>
+<pre><code><span class="c-kw">if</span> y[i] != y[j]:
+    L = <span class="c-fn">max</span>(<span class="c-num">0</span>, alpha[j] - alpha[i]);  H = <span class="c-fn">min</span>(<span class="c-self">self</span>.C, <span class="c-self">self</span>.C + alpha[j] - alpha[i])
+<span class="c-kw">else</span>:
+    L = <span class="c-fn">max</span>(<span class="c-num">0</span>, alpha[i] + alpha[j] - <span class="c-self">self</span>.C);  H = <span class="c-fn">min</span>(<span class="c-self">self</span>.C, alpha[i] + alpha[j])
+
+<span class="c-kw">if</span> L &gt;= H:
+    <span class="c-kw">continue</span></code></pre>
+  <p>Both alphas must stay inside <span class="m">[0, C]</span> — that's a square box. The equality constraint forces the pair to stay on a diagonal line. <b>Line ∩ box = a segment</b>, and <code>L</code> and <code>H</code> are its two endpoints. Two cases because the line's slope flips sign depending on whether the labels agree. If <code>L >= H</code> the segment is a single point — no room to move — so skip. There's a live diagram of this in <a href="#s-lab">section 09</a>; drag the sliders and the formulas stop being formulas.</p>
+
+  <h4>5. eta — the curvature</h4>
+<pre><code>eta = <span class="c-num">2.0</span> * K[i, j] - K[i, i] - K[j, j]
+<span class="c-kw">if</span> eta &gt;= <span class="c-num">0</span>:
+    <span class="c-kw">continue</span></code></pre>
+  <p>Compare with Idea 1 and this is instantly recognisable:</p>
+  <div class="mblock">eta <span class="op">=</span> 2k(x<sub>i</sub>,x<sub>j</sub>) <span class="op">−</span> k(x<sub>i</sub>,x<sub>i</sub>) <span class="op">−</span> k(x<sub>j</sub>,x<sub>j</sub>) <span class="op">=</span> <span class="op">−</span>‖φ(x<sub>i</sub>) <span class="op">−</span> φ(x<sub>j</sub>)‖<sup>2</sup>
+    <small>the negative squared distance between the two points, in feature space</small></div>
+  <p>So <code>eta</code> is normally strictly negative — the objective along the segment is a downward parabola with a clean peak, and step 6 can jump straight to it. If <code>eta >= 0</code> (identical points, or a kernel that isn't quite PSD) there's no interior peak to jump to, so bail out rather than divide by zero. <b>Note that this is the same identity as the RBF distance line and the KNN distance line.</b> One piece of algebra, three appearances.</p>
+
+  <h4>6. The actual optimisation — three lines</h4>
+<pre><code>alpha[j] -= y[j] * (E_i - E_j) / eta          <span class="c-cm"># jump to the peak of the parabola</span>
+alpha[j] = np.clip(alpha[j], L, H)            <span class="c-cm"># drag it back into the legal segment</span>
+<span class="c-cm"># ... small-step check ...</span>
+alpha[i] += y[i] * y[j] * (alpha_j_old - alpha[j])  <span class="c-cm"># move i to keep Σ α y = 0</span></code></pre>
+  <p>Unconstrained optimum → clip into <span class="m">[L, H]</span> → move <span class="m">α<sub>i</sub></span> by exactly the amount that repairs the equality constraint. That third line is not a heuristic: it is the unique correction that keeps <span class="m">Σ α y</span> unchanged. <b>These three lines are the algorithm.</b> Everything above them is deciding which pair to apply them to.</p>
+<pre><code><span class="c-kw">if</span> <span class="c-fn">abs</span>(alpha[j] - alpha_j_old) &lt; <span class="c-num">1e-5</span>:
+    <span class="c-kw">continue</span></code></pre>
+  <p>If the step was microscopic, don't count it as progress. Without this, rounding-level wiggles would keep resetting <code>passes</code> to zero and the loop would never converge. It's the difference between "changed" and "meaningfully changed."</p>
+
+  <h4>7. Repairing b</h4>
+<pre><code>b1 = b - E_i - y[i]*(alpha[i]-alpha_i_old)*K[i,i] - y[j]*(alpha[j]-alpha_j_old)*K[i,j]
+b2 = b - E_j - y[i]*(alpha[i]-alpha_i_old)*K[i,j] - y[j]*(alpha[j]-alpha_j_old)*K[j,j]
+
+<span class="c-kw">if</span> <span class="c-num">0</span> &lt; alpha[i] &lt; <span class="c-self">self</span>.C:   b = b1
+<span class="c-kw">elif</span> <span class="c-num">0</span> &lt; alpha[j] &lt; <span class="c-self">self</span>.C: b = b2
+<span class="c-kw">else</span>:                        b = (b1 + b2) / <span class="c-num">2.0</span></code></pre>
+  <p>The alphas moved, so <code>b</code> is now stale. <code>b1</code> is the value that would put point <span class="m">i</span> exactly on the margin; <code>b2</code> does the same for <span class="m">j</span>. The choice is principled: <b>an α strictly between 0 and C means that point is exactly on the margin</b> (it's an unbounded support vector), so its <code>b</code> is the trustworthy one. If both are at a bound, neither is pinned to the margin — so average them and move on. Read the three-way branch as "prefer a witness that's actually standing on the boundary."</p>
+
+  <h4>8. Convergence</h4>
+<pre><code><span class="c-kw">if</span> num_changed == <span class="c-num">0</span>:
+    passes += <span class="c-num">1</span>
+<span class="c-kw">else</span>:
+    passes = <span class="c-num">0</span></code></pre>
+  <p>Sweep all <span class="m">n</span> points. If a full sweep changed nothing, everything satisfies KKT within <code>tol</code>. Count <code>max_passes</code> consecutive clean sweeps and stop. Any change anywhere resets the counter to zero — the bar is "clean sweeps <em>in a row</em>", not "clean sweeps in total."</p>
+  <table class="tbl">
+    <tr><th>Attribute</th><th>Why it's in the class</th></tr>
+    <tr><td><code>max_passes</code></td><td>How many clean sweeps count as done. The convergence criterion.</td></tr>
+    <tr><td><code>max_epochs</code></td><td>Emergency brake. The docstring: "hard ceiling on outer loops, so the fit always terminates." Without it a hard configuration could spin forever inside a grid search.</td></tr>
+    <tr><td><code>converged_</code></td><td><code>passes >= self.max_passes</code>. Records <b>which exit you took</b> — a real convergence, or a timeout. This is the difference between reporting a number and reporting a number you can defend.</td></tr>
+    <tr><td><code>n_epochs_</code></td><td>How many sweeps it actually took. Your evidence for the "RBF converges faster than poly" kind of claim.</td></tr>
+  </table>
+  <div class="good">
+    <b>Say this and you sound like you built it</b>
+    <p style="margin:0">"<code>converged_</code> is checked before reporting. A configuration that hit <code>max_epochs</code> is reported as truncated rather than silently presented as a converged result." A file that can tell you it gave up is worth more than one that can't.</p>
+  </div>
+
+  <details>
+    <summary>Prediction, support vectors, and one quirk<span class="tag">the rest of the file</span></summary>
+    <div class="dbody">
+<pre><code><span class="c-kw">def</span> <span class="c-fn">decision_function</span>(<span class="c-self">self</span>, X):
+    K_test = compute_kernel_matrix(X, <span class="c-self">self</span>.X_train, ...)
+    <span class="c-kw">return</span> K_test @ (<span class="c-self">self</span>.alpha * <span class="c-self">self</span>.y_train) + <span class="c-self">self</span>.b</code></pre>
+      <p>Identical in shape to kernel ridge, with two differences: the coefficients are <code>alpha * y_train</code> rather than <code>alpha</code> (the SVM dual carries the label inside the sum), and there's a bias <code>b</code>. That's the whole difference between the two prediction rules.</p>
+      <p><b><code>n_support_</code></b> counts <code>alpha > 1e-8</code>. Not <code>> 0</code>, because floating point leaves dust like 1e-17 behind — those aren't support vectors, they're rounding. The points that survive are the only ones in the sum: <b>delete every training point with α = 0 and the model is bit-for-bit identical.</b> That's the sparsity property, and it's the one thing the SVM has that kernel ridge doesn't (ridge's α is dense — every training point contributes forever).</p>
+      <p><b>A quirk worth knowing before someone finds it.</b> <code>predict</code> returns <code>np.sign(...)</code>, which maps an exact zero to 0, not ±1. Then the classifier does <code>np.where(preds >= 0, classes_[1], classes_[0])</code> — so a point landing exactly on the boundary is assigned <code>classes_[1]</code>. Probability zero on real data, but it's the kind of thing that gets asked, and "ties break toward the positive class" is a better answer than a blank look.</p>
+      <p><b><code>decision_scores</code> returns <code>[-s, s]</code>** for the binary case</b>, mirroring ridge's <code>[1.0 - s, s]</code>. Different because ridge regresses onto {0,1} while the SVM uses {−1,+1} targets — so ridge's "not-class" score is <code>1-s</code> and the SVM's is <code>-s</code>. Both give a valid ranking for ROC-AUC; neither gives probabilities.</p>
+    </div>
+  </details>
+
+  <div class="step" data-step="svm">
+    <input type="checkbox" id="ck-svm"><label for="ck-svm">I can say why SMO must move two alphas at once, without hedging.</label>
+  </div>
+</section>
+
+<!-- ---------------- KPCA ---------------- -->
+<section id="s-kpca">
+  <div class="sechead">
+    <div class="eyebrow">06 — kpca.py</div>
+    <h2>PCA, but the covariance matrix is never built.</h2>
+    <p class="lede">Ordinary PCA eigendecomposes a d×d covariance matrix. KPCA eigendecomposes the n×n kernel matrix instead — and gets nonlinear components for it.</p>
+  </div>
+
+  <div class="filebadge"><i style="background:#5a4f9e; color:#fff">P</i> models/kpca.py</div>
+  <div class="krole">What it does to K: <b>centres it, then takes its eigenvectors</b>.</div>
+
+  <h3>The swap that makes it work</h3>
+  <table class="tbl">
+    <tr><th></th><th>Ordinary PCA</th><th>Kernel PCA</th></tr>
+    <tr><td>Decomposes</td><td>covariance, d×d</td><td>kernel matrix, n×n</td></tr>
+    <tr><td>Eigenvector length</td><td>d — a direction in input space</td><td>n — one weight per training point</td></tr>
+    <tr><td>Components are</td><td>linear combinations of features</td><td>nonlinear surfaces in input space</td></tr>
+    <tr><td>Cost</td><td>O(d³)</td><td>O(n³) and O(n²) memory</td></tr>
+  </table>
+  <p>Read the second row twice, because it's where people get lost. In KPCA <b>an eigenvector is not a direction you can plot</b>. It's a length-<span class="m">n</span> vector of coefficients <span class="m">a</span>, and the actual principal component lives in feature space as <span class="m">v = Σ<sub>i</sub> a<sub>i</sub> φ(x<sub>i</sub>)</span> — unbuildable, again. The representer theorem, again. Everything in this codebase is one weight per training point.</p>
+
+  <h3>fit — five moves</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">fit</span>(<span class="c-self">self</span>, X):
+    <span class="c-self">self</span>.X_train = X.copy()
+    n = X.shape[<span class="c-num">0</span>]
+
+    K = compute_kernel_matrix(X, kernel_type=<span class="c-self">self</span>.kernel_type, **<span class="c-self">self</span>.kernel_params)
+    <span class="c-self">self</span>.K_train = K
+    <span class="c-self">self</span>.kernel_matrix_bytes_ = <span class="c-fn">int</span>(K.nbytes)
+
+    K_centered = center_kernel_matrix(K)
+
+    n_comp = <span class="c-fn">min</span>(<span class="c-self">self</span>.n_components, n - <span class="c-num">1</span>)
+    eigenvalues, eigenvectors = eigh(K_centered, subset_by_index=[n - n_comp, n - <span class="c-num">1</span>])
+
+    idx = np.argsort(eigenvalues)[::-<span class="c-num">1</span>]
+    <span class="c-self">self</span>.eigenvalues = eigenvalues[idx]
+    <span class="c-self">self</span>.eigenvectors = eigenvectors[:, idx]
+
+    <span class="c-kw">for</span> i <span class="c-kw">in</span> <span class="c-fn">range</span>(<span class="c-fn">len</span>(<span class="c-self">self</span>.eigenvalues)):
+        <span class="c-kw">if</span> <span class="c-self">self</span>.eigenvalues[i] &gt; <span class="c-num">1e-10</span>:
+            <span class="c-self">self</span>.eigenvectors[:, i] /= np.sqrt(<span class="c-self">self</span>.eigenvalues[i])
+
+    <span class="c-kw">return</span> <span class="c-self">self</span></code></pre>
+
+  <details>
+    <summary>Line by line — the four lines that need explaining<span class="tag">do not skip</span></summary>
+    <div class="dbody">
+      <table class="tbl lines">
+        <tr><th>Line</th><th>What it does, and why</th></tr>
+        <tr><td>self.K_train = K</td><td>Stored, not discarded — unlike in ridge. <code>transform()</code> needs it later to centre test points against the <em>training</em> mean. This is the price of doing centring correctly, and it means a fitted KPCA holds an n×n matrix in memory for its whole life.</td></tr>
+        <tr><td>K_centered = center_kernel_matrix(K)</td><td>One argument → the training branch of that function → the double-centring from the kernels.py section. <b>PCA on uncentred data measures the wrong thing</b>: the first component would just point at the mean instead of at the direction of maximum variance. Not optional.</td></tr>
+        <tr><td>n_comp = min(self.n_components, n - 1)</td><td>Two caps in one line. You can't have more components than points; and centring itself destroys one degree of freedom (the columns of K<sub>c</sub> now sum to zero, forcing an eigenvalue to be exactly 0). Hence <code>n - 1</code>, not <code>n</code>. Ask for 50 components from 30 points and you silently get 29 — worth knowing when your output array is narrower than you expected.</td></tr>
+        <tr><td>eigh(K_centered, subset_by_index=[n - n_comp, n - 1])</td><td><code>eigh</code> is the symmetric/Hermitian solver — valid because K is symmetric, and roughly twice as fast as the general <code>eig</code> while guaranteeing real eigenvalues. <code>subset_by_index</code> asks for only the eigenvectors you'll keep, instead of computing all n and throwing most away. The indices <code>[n-n_comp, n-1]</code> mean "the top n_comp" because <b>eigh returns results in ascending order</b> — the largest live at the end.</td></tr>
+        <tr><td>idx = np.argsort(eigenvalues)[::-1]</td><td>Reverse to descending, so component 0 is the one that explains the most variance. The <code>[:, idx]</code> reorders <em>columns</em>, because eigh returns eigenvectors as columns. Getting this wrong (reordering rows) is a classic silent bug — the shapes still work and the output is garbage.</td></tr>
+        <tr><td>if eigenvalues[i] > 1e-10:</td><td>The guard. A near-zero eigenvalue would make <code>sqrt</code> tiny and the division explode; a <em>negative</em> one — which a poly kernel that has rounded its way out of PSD will hand you — would make <code>np.sqrt</code> return <code>nan</code>. Rather than crash, skip the normalisation for that component. This is the same root cause as ridge's <code>try/except</code>, showing up in a different file.</td></tr>
+        <tr><td>eigenvectors[:, i] /= np.sqrt(eigenvalues[i])</td><td><b>The line everyone asks about.</b> See below.</td></tr>
+      </table>
+      <h4>Why divide by √λ</h4>
+      <p>We want the principal component in feature space, <span class="m">v = Σ<sub>i</sub> a<sub>i</sub>φ(x<sub>i</sub>)</span>, to be a <b>unit</b> vector — that's what makes a projection onto it a genuine coordinate. Work out its length using only kernels:</p>
+      <div class="mblock">‖v‖<sup>2</sup> <span class="op">=</span> Σ<sub>i,j</sub> a<sub>i</sub>a<sub>j</sub> φ(x<sub>i</sub>)<span class="op">·</span>φ(x<sub>j</sub>) <span class="op">=</span> a<sup>⊤</sup>K<sub>c</sub>a <span class="op">=</span> a<sup>⊤</sup>(λa) <span class="op">=</span> λ‖a‖<sup>2</sup>
+        <small>using K<sub>c</sub>a = λa, the definition of an eigenvector</small></div>
+      <p><code>eigh</code> hands back <span class="m">a</span> with <span class="m">‖a‖ = 1</span>, so <span class="m">‖v‖<sup>2</sup> = λ</span> — too long by a factor of <span class="m">√λ</span>. Divide <span class="m">a</span> by <span class="m">√λ</span> and <span class="m">‖v‖ = 1</span>. <b>So the division normalises a vector you never built, by adjusting the coefficients of a vector you did.</b> That sentence is the whole of KPCA in miniature, and it's a good thing to have memorised.</p>
+    </div>
+  </details>
+
+  <h3>transform vs fit_transform — and why they aren't the same code</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">transform</span>(<span class="c-self">self</span>, X):
+    K_test = compute_kernel_matrix(X, <span class="c-self">self</span>.X_train, ...)      <span class="c-cm"># m×n</span>
+    K_test_centered = center_kernel_matrix(K_test, <span class="c-self">self</span>.K_train)  <span class="c-cm"># TWO args</span>
+    <span class="c-kw">return</span> K_test_centered @ <span class="c-self">self</span>.eigenvectors
+
+<span class="c-kw">def</span> <span class="c-fn">fit_transform</span>(<span class="c-self">self</span>, X):
+    <span class="c-self">self</span>.fit(X)
+    K_centered = center_kernel_matrix(<span class="c-self">self</span>.K_train)                <span class="c-cm"># ONE arg</span>
+    <span class="c-kw">return</span> K_centered @ <span class="c-self">self</span>.eigenvectors</code></pre>
+  <p>Same last line, different centring. <code>fit_transform</code> centres the training kernel against itself; <code>transform</code> centres the test kernel <b>against the training statistics</b>. Passing one argument where you meant two is a data leak that will inflate your test scores and look like a good result. The two-argument call is the correct one for anything that isn't the training set.</p>
+  <p>And the projection line is, once more, the representer form: a row of (centred) kernel values against the training set, dotted with learned per-point coefficients.</p>
+
+  <details class="deep">
+    <summary>A neat identity: what fit_transform actually returns<span class="tag">optional but impressive</span></summary>
+    <div class="dbody">
+      <p>Take the normalised eigenvector <span class="m">ã = a/√λ</span> and push the training data through:</p>
+      <div class="mblock">K<sub>c</sub> ã <span class="op">=</span> K<sub>c</sub> a / √λ <span class="op">=</span> λa / √λ <span class="op">=</span> √λ · a</div>
+      <p>So the training projections are just the original eigenvector scaled by <span class="m">√λ</span>. Two things follow, both useful in a report:</p>
+      <ul>
+        <li>The <b>spread of each output column is set by <span class="m">√λ</span></b>. Column 0 has the widest spread because it has the largest eigenvalue. That's "explains the most variance," made concrete.</li>
+        <li>You could compute the training projections without the matmul at all. The code does the matmul anyway — because it makes <code>fit_transform</code> and <code>transform</code> visibly the same operation, and clarity beats saving one <span class="m">O(n<sup>2</sup>)</span> multiply that you already paid for many times over.</li>
+      </ul>
+    </div>
+  </details>
+
+  <h3>KPCAClassifier — two stages bolted together</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">fit</span>(<span class="c-self">self</span>, X, y):
+    <span class="c-kw">from</span> .logistic_regression <span class="c-kw">import</span> LogisticRegression   <span class="c-cm"># import inside the method</span>
+
+    <span class="c-self">self</span>.kpca = KernelPCA(n_components=..., kernel_type=..., **<span class="c-self">self</span>.kernel_params)
+    X_transformed = <span class="c-self">self</span>.kpca.fit_transform(X)
+    X_transformed = np.nan_to_num(X_transformed, nan=<span class="c-num">0.0</span>)
+    <span class="c-self">self</span>.kernel_matrix_bytes_ = <span class="c-self">self</span>.kpca.kernel_matrix_bytes_
+
+    <span class="c-self">self</span>.classifier = LogisticRegression(lr=<span class="c-self">self</span>.lr, n_iters=<span class="c-self">self</span>.n_iters, reg_lambda=<span class="c-num">0.01</span>)
+    <span class="c-self">self</span>.classifier.fit(X_transformed, y)
+    <span class="c-kw">return</span> <span class="c-self">self</span></code></pre>
+  <p>KPCA doesn't classify — it's unsupervised, and its <code>fit</code> takes no <code>y</code>. So this wrapper does <b>reduce, then classify</b>: project into <code>n_components</code> dimensions, hand the result to a plain logistic regression. The comparison it enables is the interesting one: <em>can a linear classifier on nonlinear features match a nonlinear classifier on raw features?</em> That's KPCA+logreg versus kernel SVM, and it's the experiment worth reporting.</p>
+  <table class="tbl">
+    <tr><th>Line</th><th>Why it's like that</th></tr>
+    <tr><td><code>from .logistic_regression import ...</code> inside <code>fit</code></td><td>A deferred import. Standard Python practice for breaking a circular import, or for not paying an import cost that only one code path needs. It also means a broken <code>logistic_regression.py</code> won't stop you importing <code>kpca.py</code> — the failure surfaces at <code>fit</code> time.</td></tr>
+    <tr><td><code>np.nan_to_num(X_transformed, nan=0.0)</code>, three times</td><td>Cleanup after the eigen-decomposition. A negative eigenvalue that slipped past the <code>1e-10</code> guard can put NaNs in the projections, and a single NaN entering gradient descent poisons every weight on the first step. Setting it to 0 means "this component carries no information for this point" — the least harmful available lie. It appears in <code>fit</code>, <code>decision_scores</code> and <code>predict</code> because all three paths run a projection.</td></tr>
+    <tr><td><code>reg_lambda=0.01</code>, hard-coded</td><td>Not exposed in <code>__init__</code>, unlike <code>lr</code> and <code>n_iters</code>. If your write-up claims the downstream classifier's regularisation was tuned, it wasn't — this is a fixed value. Say so.</td></tr>
+    <tr><td><code>classes_</code> as a <code>@property</code></td><td>Forwards to <code>self.classifier.classes_</code>. The wrapper never computes the class list itself; it borrows it, so the two can't disagree. Note this raises if called before <code>fit</code>, since <code>self.classifier</code> is still <code>None</code>.</td></tr>
+    <tr><td><code>self.kernel_matrix_bytes_ = self.kpca.kernel_matrix_bytes_</code></td><td>A plain copy, not a <code>@property</code> like in the ridge and SVM wrappers. Three classes in this codebase expose the same attribute name three different ways. Worth noting as an inconsistency if you're reviewing the code, though the reported number is correct.</td></tr>
+  </table>
+
+  <div class="step" data-step="kpca">
+    <input type="checkbox" id="ck-kpca"><label for="ck-kpca">I can explain why the eigenvectors get divided by √λ.</label>
+  </div>
+</section>
+
+<!-- ---------------- KERNEL KNN ---------------- -->
+<section id="s-knn">
+  <div class="sechead">
+    <div class="eyebrow">07 — kernel_knn.py</div>
+    <h2>The file that is honest about being pointless.</h2>
+    <p class="lede">Read its docstring first. The author tells you, in advance, that two of the three kernels change nothing here. That candour is the most valuable thing in the file.</p>
+  </div>
+
+  <div class="filebadge"><i style="background:#d4794f; color:#fff">N</i> models/kernel_knn.py</div>
+  <div class="krole">What it does to K: <b>turns it into distances</b> — and never builds the training half of it at all.</div>
+
+  <h3>Distance from similarity</h3>
+  <p>KNN needs distances. A kernel gives similarities. Idea 1 converts between them for free:</p>
+  <div class="mblock">d<sup>2</sup>(x, z) <span class="op">=</span> ‖φ(x) <span class="op">−</span> φ(z)‖<sup>2</sup> <span class="op">=</span> k(x,x) <span class="op">+</span> k(z,z) <span class="op">−</span> 2k(x,z)
+    <small>the distance in feature space, computed entirely from kernel values</small></div>
+<pre><code>dists = np.maximum(
+    K_diag_test.reshape(-<span class="c-num">1</span>, <span class="c-num">1</span>) + <span class="c-self">self</span>.K_diag_train.reshape(<span class="c-num">1</span>, -<span class="c-num">1</span>) - <span class="c-num">2.0</span> * K_cross,
+    <span class="c-num">0.0</span>
+)</code></pre>
+  <p>Compare that against the middle of <code>rbf_kernel</code> and against <code>eta</code> in the SVM. <b>Same identity, third appearance.</b> Column + row broadcasts to a grid; <code>np.maximum(..., 0.0)</code> clamps the floating-point negatives; the result is an m×n table of squared distances. Note it never takes a square root — <code>argpartition</code> only needs a ranking, and <span class="m">√</span> is monotone, so the root would cost time and change nothing.</p>
+
+  <div class="warn">
+    <b>The docstring's admission — and why it's the best paragraph in the codebase</b>
+    <p style="margin:0">Substitute each kernel into the distance formula and watch what happens:</p>
+    <table class="tbl" style="margin-top:10px">
+      <tr><th>Kernel</th><th>d² becomes</th><th>Effect on the neighbour list</th></tr>
+      <tr><td>linear (c=0)</td><td><span class="m">‖x‖<sup>2</sup> <span class="op">+</span> ‖z‖<sup>2</sup> <span class="op">−</span> 2x<span class="op">·</span>z</span> = plain Euclidean²</td><td><b>None.</b> It is ordinary KNN.</td></tr>
+      <tr><td>rbf</td><td><span class="m">1 <span class="op">+</span> 1 <span class="op">−</span> 2k <span class="op">=</span> 2 <span class="op">−</span> 2k(x,z)</span></td><td><b>None.</b> k decreases monotonically with Euclidean distance, so the <em>ordering</em> is identical. Same neighbours, always — for every γ.</td></tr>
+      <tr><td>poly</td><td><span class="m">(α‖x‖<sup>2</sup><span class="op">+</span>c)<sup>d</sup> <span class="op">+</span> (α‖z‖<sup>2</sup><span class="op">+</span>c)<sup>d</sup> <span class="op">−</span> 2(αx<span class="op">·</span>z<span class="op">+</span>c)<sup>d</sup></span></td><td><b>Genuinely different.</b> Not monotone in Euclidean distance — the norm terms enter at degree d and can dominate.</td></tr>
+    </table>
+    <p style="margin:8px 0 0">So when your results table shows linear-KNN and RBF-KNN with identical accuracy to the last decimal, that is <b>not a bug</b> — it is the mathematics, predicted in advance by the person who wrote the file. Reporting it as a finding, with this derivation, is worth more than any accuracy number in the table. Note the γ-independence too: it's the sharpest possible demonstration that a kernel only helps when the algorithm uses the geometry it induces, not just the ordering.</p>
+  </div>
+
+  <h3>fit — the file's best decision</h3>
+<pre><code><span class="c-kw">def</span> <span class="c-fn">fit</span>(<span class="c-self">self</span>, X, y):
+    <span class="c-self">self</span>.X_train = X.copy()
+    <span class="c-self">self</span>.y_train = y.copy()
+    <span class="c-self">self</span>.classes_ = np.unique(y)
+    <span class="c-cm"># Closed-form diagonal: avoids an n x n matrix built just to read it.</span>
+    <span class="c-self">self</span>.K_diag_train = kernel_diagonal(X, kernel_type=<span class="c-self">self</span>.kernel_type, **<span class="c-self">self</span>.kernel_params)
+    <span class="c-self">self</span>.kernel_matrix_bytes_ = <span class="c-fn">int</span>(<span class="c-self">self</span>.K_diag_train.nbytes)
+    <span class="c-kw">return</span> <span class="c-self">self</span></code></pre>
+  <p>There is <b>no training</b> here — no α, no solve, no iteration. KNN is a lazy learner: it memorises and defers. The only computation is the diagonal, and it uses <code>kernel_diagonal</code> rather than <code>compute_kernel_matrix</code>, so this class stores <span class="m">O(n)</span> bytes where every other model stores <span class="m">O(n<sup>2</sup>)</span>. On 10,000 points that's 80 KB against 800 MB — four orders of magnitude, from choosing the right function. Expect to be asked about the anomalous row in your memory table; this line is the answer.</p>
+
+  <h3>predict, decision by decision</h3>
+  <table class="tbl lines">
+    <tr><th>Line</th><th>What it does, and why</th></tr>
+    <tr><td>k_actual = min(self.k, max(1, len(self.X_train) - 1))</td><td>You can't ask for 5 neighbours from 3 points. The inner <code>max(1, ...)</code> guarantees at least one neighbour even in a degenerate one-point training set. Note it silently caps rather than raising — so with <code>k=5</code> and 4 training points you're actually running 3-NN and nothing tells you.</td></tr>
+    <tr><td>np.argpartition(dists[i], k_actual)[:k_actual]</td><td><b>The performance choice.</b> A full <code>argsort</code> is O(n log n) and sorts all n distances when you only want the smallest k. <code>argpartition</code> is O(n): it shuffles the array just enough that the k smallest land in the first k slots, in no particular order. You don't care about their order — only their identity — so the extra work is pure waste. Same answer, better complexity.</td></tr>
+    <tr><td>self._last_proba[i, cls_idx[lab]] += 1.0 / k_actual</td><td>The "probability" is the fraction of the k neighbours voting for each class. With k=5 the only possible values are 0, 0.2, 0.4, 0.6, 0.8, 1.0 — a coarse ladder, not a calibrated probability. Fine for ROC-AUC (a ranking), and it will produce a visibly stepped ROC curve. Predict that in your report before the marker notices it.</td></tr>
+    <tr><td>cls_idx = {c: i for i, c in enumerate(self.classes_)}</td><td>Maps a class label to a column index, so the proba matrix's columns line up with <code>classes_</code>. Built once outside the loop rather than searched inside it.</td></tr>
+    <tr><td>unique_labels[np.argmax(counts)]</td><td>Majority vote. <code>np.unique</code> returns labels sorted, and <code>argmax</code> returns the <em>first</em> maximum — so a tie is broken in favour of the lowest-valued label. Deterministic, slightly arbitrary, worth knowing.</td></tr>
+  </table>
+
+  <div class="warn">
+    <b>Two real snags in this file</b>
+    <p style="margin:0 0 8px"><b>1. <code>predict_proba</code> is stateful.</b> It calls <code>self.predict(X)</code> purely for the side effect of filling <code>self._last_proba</code>, then returns that attribute. So calling <code>predict_proba</code> silently doubles the work if you already called <code>predict</code>, and the attribute always reflects <em>the most recent</em> call — read it after predicting on a different X and you get the wrong array with no warning. It works as written; it's fragile as a pattern.</p>
+    <p style="margin:0"><b>2. A latent edge case in the regressor.</b> <code>KernelKNNRegressor</code> uses <code>k_actual = min(self.k, len(self.X_train))</code> — no <code>-1</code>, unlike the classifier. But <code>np.argpartition(arr, kth)</code> requires <code>kth</code> to be a valid index, i.e. strictly less than the array length. So if you ever set <code>k</code> equal to the number of training points, the classifier survives and the regressor raises. Never triggered at sensible k values, and I'd flag it in a code review rather than in a results section — but it's exactly the kind of asymmetry a marker enjoys finding, so notice it before they do.</p>
+  </div>
+
+  <p>The regressor is otherwise the classifier with the vote swapped for an average: <code>predictions.append(np.mean(nn_values))</code>. Same distances, same <code>argpartition</code>, different final line. And <code>y.astype(np.float64)</code> rather than <code>.copy()</code> — because averaging integer labels would truncate.</p>
+
+  <div class="step" data-step="knn">
+    <input type="checkbox" id="ck-knn"><label for="ck-knn">I can explain why linear-KNN and RBF-KNN give identical results, and why that's not a bug.</label>
+  </div>
+</section>
+
+<!-- ---------------- CROSS-CUTTING ---------------- -->
+<section id="s-cross">
+  <div class="sechead">
+    <div class="eyebrow">08 — Shared patterns</div>
+    <h2>Four conventions that repeat across every file.</h2>
+    <p class="lede">Learn these once and you've learned a quarter of the codebase, because they recur verbatim.</p>
+  </div>
+
+  <h3>The whole codebase on one page</h3>
+  <table class="tbl">
+    <tr><th>File</th><th>What α means</th><th>How α is found</th><th>Fit cost</th><th>Memory</th><th>α is</th></tr>
+    <tr><td><code>kernel_ridge</code></td><td>weight per training point</td><td><code>solve(K+λI, y)</code></td><td>O(n³)</td><td>O(n²)</td><td>dense</td></tr>
+    <tr><td><code>kernel_svm</code></td><td>how hard point i pushes</td><td><code>_run_smo()</code>, iterative</td><td>O(n²) per epoch</td><td>O(n²)</td><td><b>sparse</b></td></tr>
+    <tr><td><code>kpca</code></td><td>coefficients of a component</td><td><code>eigh(K_centered)</code></td><td>O(n³)</td><td>O(n²)</td><td>dense</td></tr>
+    <tr><td><code>kernel_knn</code></td><td>1/k for neighbours, 0 otherwise</td><td>not learned at all</td><td><b>zero</b></td><td><b>O(n)</b></td><td>sparse by construction</td></tr>
+  </table>
+  <p>Four algorithms, one question: <em>what are the n numbers?</em> If you can reproduce this table from memory you can answer most of what you'll be asked.</p>
+
+  <h3>1. <code>kernel_matrix_bytes_</code> — someone wanted the cost measured</h3>
+  <p>It appears in every class, always set from <code>K.nbytes</code> right after <code>K</code> is built, always commented <code>O(n^2) footprint</code>. The wrappers sum it over their OVR sub-models, because <span class="m">C</span> classes means <span class="m">C</span> matrices. This isn't logging — it's the experimental instrument for the memory-scaling result. And <code>kernel_knn</code>'s <span class="m">O(n)</span> value is the punchline that makes the table interesting.</p>
+
+  <h3>2. The trailing underscore</h3>
+  <p><code>classes_</code>, <code>alpha</code>, <code>ovr_models_</code>, <code>converged_</code>, <code>n_epochs_</code>, <code>n_support_</code>. The scikit-learn convention: <b>a trailing underscore means "learned during fit"</b>, as opposed to a constructor argument like <code>C</code> or <code>gamma</code>. Reading a class, the underscored names tell you at a glance what's state and what's configuration — and that accessing them before <code>fit</code> is meaningless.</p>
+
+  <h3>3. One-vs-rest, three times</h3>
+  <p>Ridge, SVM and (via logistic regression) KPCA all handle multi-class the same way: train one binary model per class, take the <code>argmax</code> of the scores. The differences are small but exam-worthy:</p>
+  <table class="tbl">
+    <tr><th></th><th>Ridge</th><th>SVM</th></tr>
+    <tr><td>Binary targets</td><td><code>{0, 1}</code></td><td><code>{-1, +1}</code></td></tr>
+    <tr><td>Why</td><td>it's regressing onto an indicator</td><td>the dual's <span class="m">y<sub>i</sub>y<sub>j</sub></span> terms need ±1</td></tr>
+    <tr><td>Binary threshold</td><td><code>>= 0.5</code></td><td><code>>= 0</code> (sign)</td></tr>
+    <tr><td>Second score column</td><td><code>1.0 - s</code></td><td><code>-s</code></td></tr>
+    <tr><td>Per-model seeding</td><td>none needed — deterministic</td><td><code>random_state + ci</code></td></tr>
+  </table>
+  <div class="note">
+    <b>The known weakness of OVR, in case you're asked</b>
+    <p style="margin:0">The sub-models are trained independently and never calibrated against each other, so comparing their scores with <code>argmax</code> assumes the scales are commensurable. They aren't, necessarily. Each sub-problem is also imbalanced by construction — one class against all the others. Both are accepted costs of the simplest multi-class scheme; naming them shows you know what you chose.</p>
+  </div>
+
+  <h3>4. <code>decision_scores</code> exists solely for ROC-AUC</h3>
+  <p>Accuracy needs a label. AUC needs a <b>ranking</b> — a continuous score whose ordering can be swept through every threshold. So every classifier grew a method returning raw scores, one column per class, aligned with <code>classes_</code>. Note the docstrings never say "probability": ridge says "Raw regression scores per class," the SVM says "Raw margins." Only <code>KPCAClassifier.decision_scores</code> returns something genuinely probabilistic, and only because logistic regression's <code>predict_proba</code> does. Keep that distinction in your write-up.</p>
+
+  <h3>The one identity that generates half the code</h3>
+  <div class="mblock">‖a <span class="op">−</span> b‖<sup>2</sup> <span class="op">=</span> ‖a‖<sup>2</sup> <span class="op">+</span> ‖b‖<sup>2</sup> <span class="op">−</span> 2 a<span class="op">·</span>b</div>
+  <p>It appears, in different clothes, in four places:</p>
+  <table class="tbl">
+    <tr><th>Where</th><th>Disguise</th><th>Purpose there</th></tr>
+    <tr><td><code>rbf_kernel</code></td><td><code>X_sq + Y_sq - 2.0 * X @ Y.T</code></td><td>all pairwise distances in one matmul</td></tr>
+    <tr><td><code>kernel_knn</code> ×2</td><td><code>K_diag_test + K_diag_train - 2*K_cross</code></td><td>distance in feature space, from kernels only</td></tr>
+    <tr><td><code>kernel_svm</code></td><td><code>eta = 2*K[i,j] - K[i,i] - K[j,j]</code></td><td>the curvature = −(feature-space distance)²</td></tr>
+    <tr><td>concepts</td><td>Idea 1</td><td>the reason kernels are possible at all</td></tr>
+  </table>
+  <p>Spot it once and three "unrelated" pieces of code become the same piece of code.</p>
+
+  <div class="step" data-step="cross">
+    <input type="checkbox" id="ck-cross"><label for="ck-cross">I can reproduce the four-file comparison table from memory.</label>
+  </div>
+</section>
+
+<!-- ---------------- LAB ---------------- -->
+<section id="s-lab">
+  <div class="sechead">
+    <div class="eyebrow">09 — Play with it</div>
+    <h2>Three things that are easier to feel than to read.</h2>
+    <p class="lede">Each panel runs the same arithmetic as the Python, in the browser. Drag things until the formulas stop looking like formulas.</p>
+  </div>
+
+  <!-- Kernel calculator -->
+  <div class="lab">
+    <h4>Kernel calculator</h4>
+    <p class="tiny">Two 2-D points. Pick a kernel and watch the exact line from <code>kernels.py</code> execute, with real numbers in it.</p>
+    <div class="ctl">
+      <label>x = ( <input type="number" id="x1" value="1" step="0.5">, <input type="number" id="x2" value="2" step="0.5"> )</label>
+      <label>z = ( <input type="number" id="z1" value="3" step="0.5">, <input type="number" id="z2" value="1" step="0.5"> )</label>
+      <label>kernel
+        <select id="kSel">
+          <option value="linear">linear</option>
+          <option value="poly">poly</option>
+          <option value="rbf" selected>rbf</option>
+        </select>
+      </label>
+      <label id="pWrapA">γ <input type="range" id="pA" min="0.05" max="3" step="0.05" value="0.5"><span class="val" id="pAv">0.50</span></label>
+      <label id="pWrapB" style="display:none">degree <input type="range" id="pB" min="1" max="5" step="1" value="3"><span class="val" id="pBv">3</span></label>
+    </div>
+    <div class="readout" id="calcOut"></div>
+  </div>
+
+  <!-- RBF curve -->
+  <div class="lab">
+    <h4>What γ actually controls</h4>
+    <p class="tiny">Similarity against distance, for <code>np.exp(-gamma * dist_sq)</code>. Small γ = a long reach = a nearly linear model. Large γ = an island per point = memorisation. This one curve is the bias–variance trade-off for every RBF model in the codebase.</p>
+    <div class="ctl">
+      <label>γ <input type="range" id="cvG" min="0.05" max="8" step="0.05" value="1"><span class="val" id="cvGv">1.00</span></label>
+    </div>
+    <div id="cvBox"></div>
+    <div class="figcap" id="cvCap"></div>
+  </div>
+
+  <!-- SMO box -->
+  <div class="lab">
+    <h4>Where L and H come from</h4>
+    <p class="tiny">The square is the constraint <span class="m">0 ≤ α ≤ C</span>. The gold line is <span class="m">Σ α y = 0</span> holding the pair together. The bright segment is where they intersect — and its two ends are exactly the <code>L</code> and <code>H</code> in the code. Flip the labels and watch the slope invert.</p>
+    <div class="ctl">
+      <label>C <input type="range" id="smC" min="0.5" max="4" step="0.1" value="2"><span class="val" id="smCv">2.0</span></label>
+      <label>α<sub>i</sub> <input type="range" id="smAi" min="0" max="4" step="0.05" value="0.7"><span class="val" id="smAiv">0.70</span></label>
+      <label>α<sub>j</sub> <input type="range" id="smAj" min="0" max="4" step="0.05" value="1.4"><span class="val" id="smAjv">1.40</span></label>
+      <label>labels
+        <select id="smY">
+          <option value="same">y_i == y_j</option>
+          <option value="diff" selected>y_i != y_j</option>
+        </select>
+      </label>
+    </div>
+    <div id="smBox"></div>
+    <div class="readout" id="smOut" style="margin-top:12px"></div>
+  </div>
+
+  <div class="step" data-step="lab">
+    <input type="checkbox" id="ck-lab"><label for="ck-lab">I've dragged all three and the L/H formulas now look obvious.</label>
+  </div>
+</section>
+
+<!-- ---------------- QUIZ ---------------- -->
+<section id="s-quiz">
+  <div class="sechead">
+    <div class="eyebrow">10 — Defend it</div>
+    <h2>The questions you'll actually get.</h2>
+    <p class="lede">Answer out loud before revealing. If you can't, the section link next to the answer is where to go back to.</p>
+  </div>
+
+  <div class="q"><p><b>1.</b> What is the kernel trick, in two sentences, without saying "higher dimensional space" and stopping there?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">These algorithms only ever touch the data through dot products between pairs of points. So you can replace that dot product with any function that returns what a dot product in some richer space <em>would</em> have returned — getting the nonlinear model without ever computing the coordinates in that space. Evidence: <code>φ</code> appears nowhere in these five files.</div>
+  </div>
+
+  <div class="q"><p><b>2.</b> Why is the SMO working set two alphas and not one?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">The dual has the equality constraint <span class="m">Σ α<sub>i</sub>y<sub>i</sub> = 0</span>. Moving one α alone breaks it. Two is the smallest set that can move while keeping the sum fixed — that's why <code>alpha[i] += y[i]*y[j]*(alpha_j_old - alpha[j])</code> exists.</div>
+  </div>
+
+  <div class="q"><p><b>3.</b> <code>A = K + self.reg_lambda * np.eye(n)</code> — give both reasons.</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa"><b>Statistical:</b> it's the ridge penalty, shrinking the fit away from noise. <b>Numerical:</b> it lifts every eigenvalue by λ, making a possibly-singular <span class="m">K</span> strictly positive-definite so Cholesky (<code>assume_a='pos'</code>) is valid. One line, two jobs.</div>
+  </div>
+
+  <div class="q"><p><b>4.</b> Why does <code>kernel_knn</code> report O(n) memory when everything else reports O(n²)?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">Its <code>fit</code> calls <code>kernel_diagonal</code>, not <code>compute_kernel_matrix</code>. It only ever needs <span class="m">k(x,x)</span>, and each kernel's diagonal has a closed form — for RBF it's a vector of ones with no arithmetic at all. Building n² entries to read n of them would be the naive route. <span class="tiny">(§03, §07)</span></div>
+  </div>
+
+  <div class="q"><p><b>5.</b> Your table shows linear-KNN and RBF-KNN with identical accuracy. Bug?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">No — and the docstring predicts it. Linear gives exactly Euclidean distance. RBF gives <span class="m">d<sup>2</sup> = 2 − 2k</span>, which is monotone in Euclidean distance, so the <em>ranking</em> of neighbours is unchanged for any γ. Only poly reorders anything. It's a demonstration that a kernel only helps when the algorithm uses the induced geometry, not just the ordering. <span class="tiny">(§07)</span></div>
+  </div>
+
+  <div class="q"><p><b>6.</b> Why divide the KPCA eigenvectors by √λ?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">The component in feature space is <span class="m">v = Σ a<sub>i</sub>φ(x<sub>i</sub>)</span>, and <span class="m">‖v‖<sup>2</sup> = a<sup>⊤</sup>K<sub>c</sub>a = λ‖a‖<sup>2</sup></span>. <code>eigh</code> returns <span class="m">‖a‖ = 1</span>, so <span class="m">v</span> is too long by <span class="m">√λ</span>. Dividing <span class="m">a</span> by <span class="m">√λ</span> normalises a vector you never constructed. <span class="tiny">(§06)</span></div>
+  </div>
+
+  <div class="q"><p><b>7.</b> Why does <code>center_kernel_matrix</code> take a second argument?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">Test points must be centred using the <b>training</b> mean, not their own — otherwise the transform depends on which test points arrive together and the test set leaks into itself. The <code>else</code> branch sources every mean from <code>K_train</code> and divides by <code>n_train</code>. It's the kernel version of fitting a scaler on train only. <span class="tiny">(§03, §06)</span></div>
+  </div>
+
+  <div class="q"><p><b>8.</b> What's <code>np.maximum(..., 0.0)</code> guarding against, and where does it appear?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">Floating-point error can make a computed squared distance come out at about −1e−16 for identical or near-identical points. In <code>rbf_kernel</code> that would give a kernel value above 1 and break PSD; in <code>kernel_knn</code> it would corrupt the distance table. It appears in <code>rbf_kernel</code> and twice in <code>kernel_knn</code>. <span class="tiny">(§03, §07)</span></div>
+  </div>
+
+  <div class="q"><p><b>9.</b> What does <code>converged_</code> buy you that accuracy doesn't?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">It says whether the fit finished or ran out of <code>max_epochs</code>. A truncated fit's accuracy is not a property of the method — it's a property of your budget. Reporting the two separately is the difference between a result and a claim. <span class="tiny">(§05)</span></div>
+  </div>
+
+  <div class="q"><p><b>10.</b> Point at the representer theorem in three different files.</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa"><code>K_test @ self.alpha</code> (ridge), <code>K_test @ (self.alpha * self.y_train) + self.b</code> (SVM), <code>K_test_centered @ self.eigenvectors</code> (KPCA). All the same shape: kernel values against the training set, dotted with one learned coefficient per training point. And <code>np.sum(alpha * y * K[i, :])</code> inside SMO is the same sum against a cached row. <span class="tiny">(§01, §08)</span></div>
+  </div>
+
+  <div class="q"><p><b>11.</b> What makes this SMO "simplified", and what does it cost?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">The second index <code>j</code> is drawn at random rather than by Platt's heuristic, and the errors <span class="m">E<sub>i</sub></span> are recomputed from scratch each time instead of cached. Both are correct; both are slower to converge. It costs epochs, not correctness. <span class="tiny">(§05)</span></div>
+  </div>
+
+  <div class="q"><p><b>12.</b> Which of these methods gives you a sparse model, and why does that matter?</p>
+    <button onclick="qa(this)">Reveal</button>
+    <div class="qa">Only the SVM. Its <span class="m">α</span> is mostly zero — <code>n_support_</code> counts what survives. Delete every training point with <span class="m">α = 0</span> and the model is bit-for-bit identical, so prediction cost scales with the number of support vectors rather than with <span class="m">n</span>. Kernel ridge's <span class="m">α</span> is dense: every training point contributes to every prediction, forever. <span class="tiny">(§05, §08)</span></div>
+  </div>
+
+  <div class="step" data-step="quiz">
+    <input type="checkbox" id="ck-quiz"><label for="ck-quiz">I answered all twelve out loud before revealing.</label>
+  </div>
+
+  <hr>
+  <p class="tiny" style="margin-bottom:60px">Your ticks are stored by this page in your browser's <code>localStorage</code> — a small key/value store scoped to this file's origin. It was chosen over cookies because cookies are sent to a server on every request, and there is no server here; localStorage stays on your machine, survives a refresh and a reboot, and needs no network. Open the same file on another computer and you start fresh. "Clear my progress" in the sidebar wipes the keys.</p>
+</section>
+
+</div><!-- /.wrap -->
+</main>
+</div><!-- /.shell -->
+
+<script>
+/* ============================================================
+   All JavaScript for this page. Vanilla, no libraries.
+   Organised as: (1) shared helpers, (2) the three interactive
+   panels, (3) the learning system (progress + persistence).
+   ============================================================ */
+
+/* ---------- (1) shared helpers ---------- */
+
+// The heatmap palette, sampled from the CSS variables at the top of the file.
+// Keeping one source of truth means the SVG and the CSS can never drift apart.
+const STOPS = ['#26307a', '#5a4f9e', '#9c5b95', '#d4794f', '#f2c75c'];
+
+function hex2rgb(h){
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+// t goes 0 (cold, dissimilar) to 1 (hot, identical). Linear blend between stops.
+function heat(t){
+  t = Math.min(1, Math.max(0, t));
+  const span = (STOPS.length - 1);
+  const i = Math.min(Math.floor(t * span), span - 1);   // which pair of stops
+  const f = t * span - i;                                // how far between them
+  const a = hex2rgb(STOPS[i]), b = hex2rgb(STOPS[i+1]);
+  const c = a.map((v, k) => Math.round(v + (b[k] - v) * f));
+  return 'rgb(' + c.join(',') + ')';
+}
+const round = (v, n) => Number(v).toFixed(n);
+const el = id => document.getElementById(id);
+
+/* ---------- (2a) hero: the live Gram matrix ---------- */
+// Six points sitting on a line. Their pairwise RBF kernel values ARE the
+// matrix K that every model in the codebase consumes.
+const HERO_PTS = [0, 0.5, 1.2, 2.4, 3.0, 4.2];
+
+function drawHero(){
+  const g = parseFloat(el('heroG').value);
+  el('heroGv').textContent = round(g, 2);
+
+  const n = HERO_PTS.length, cell = 46, pad = 30;
+  let svg = '<svg viewBox="0 0 ' + (n*cell + pad + 210) + ' ' + (n*cell + pad + 10) + '" role="img" aria-label="Live kernel matrix heatmap">';
+  let offSum = 0, offCount = 0;
+
+  for (let i = 0; i < n; i++){
+    // row + column index labels
+    svg += '<text x="' + (pad-8) + '" y="' + (pad + i*cell + cell/2 + 4) +
+           '" text-anchor="end" fill="#626880" font-family="ui-monospace" font-size="11">' + i + '</text>';
+    svg += '<text x="' + (pad + i*cell + cell/2) + '" y="' + (pad-8) +
+           '" text-anchor="middle" fill="#626880" font-family="ui-monospace" font-size="11">' + i + '</text>';
+
+    for (let j = 0; j < n; j++){
+      const d = HERO_PTS[i] - HERO_PTS[j];
+      const k = Math.exp(-g * d * d);            // <-- rbf_kernel, one entry
+      if (i !== j){ offSum += k; offCount++; }
+      svg += '<rect x="' + (pad + j*cell) + '" y="' + (pad + i*cell) + '" width="' + (cell-2) +
+             '" height="' + (cell-2) + '" rx="3" fill="' + heat(k) + '"/>';
+      svg += '<text x="' + (pad + j*cell + (cell-2)/2) + '" y="' + (pad + i*cell + cell/2 + 4) +
+             '" text-anchor="middle" font-family="ui-monospace" font-size="10.5" fill="' +
+             (k > 0.55 ? '#241a05' : '#cfd6e6') + '">' + round(k, 2) + '</text>';
+    }
+  }
+  // legend
+  const lx = pad + n*cell + 26;
+  svg += '<text x="' + lx + '" y="' + (pad+2) + '" fill="#8b90a8" font-family="system-ui" font-size="11">similarity</text>';
+  for (let s = 0; s <= 20; s++){
+    svg += '<rect x="' + lx + '" y="' + (pad + 12 + s*8) + '" width="16" height="8" fill="' + heat(1 - s/20) + '"/>';
+  }
+  svg += '<text x="' + (lx+22) + '" y="' + (pad+20) + '" fill="#626880" font-family="ui-monospace" font-size="10">1.0  identical</text>';
+  svg += '<text x="' + (lx+22) + '" y="' + (pad+176) + '" fill="#626880" font-family="ui-monospace" font-size="10">0.0  unrelated</text>';
+  svg += '</svg>';
+  el('heroMat').innerHTML = svg;
+
+  const mean = offSum / offCount;
+  let verdict;
+  if (mean > 0.6)      verdict = 'Everything looks like everything. K is close to a matrix of ones — nearly rank 1 — so the model can barely tell your points apart. This underfits.';
+  else if (mean < 0.08) verdict = 'K is collapsing toward the identity matrix. Each point is similar only to itself, so the model memorises the training set and predicts near-nothing elsewhere. This overfits.';
+  else                  verdict = 'A usable middle. Nearby points are linked, distant ones are not — the model has local structure to learn from.';
+  el('heroCap').innerHTML = '<b>Mean off-diagonal similarity: ' + round(mean, 3) + '.</b> ' + verdict +
+    ' The diagonal stays at exactly 1.00 for every γ, because the distance from a point to itself is zero — which is precisely why <code>kernel_diagonal</code> can return <code>np.ones(n)</code> for RBF without doing any arithmetic.';
+}
+
+/* ---------- (2b) the kernel calculator ---------- */
+// Mirrors kernels.py exactly: same formulas, same parameter names.
+function calc(){
+  const x = [parseFloat(el('x1').value) || 0, parseFloat(el('x2').value) || 0];
+  const z = [parseFloat(el('z1').value) || 0, parseFloat(el('z2').value) || 0];
+  const kind = el('kSel').value;
+  const gamma = parseFloat(el('pA').value);
+  const degree = parseInt(el('pB').value);
+  el('pAv').textContent = round(gamma, 2);
+  el('pBv').textContent = degree;
+
+  // show only the parameter that the chosen kernel actually uses
+  el('pWrapA').style.display = (kind === 'rbf')  ? '' : 'none';
+  el('pWrapB').style.display = (kind === 'poly') ? '' : 'none';
+
+  const dot   = x[0]*z[0] + x[1]*z[1];                       // X @ Y.T
+  const xsq   = x[0]*x[0] + x[1]*x[1];                       // X_sq
+  const zsq   = z[0]*z[0] + z[1]*z[1];                       // Y_sq
+  const dsq   = Math.max(xsq + zsq - 2*dot, 0);              // the identity + the clamp
+  let out = '';
+
+  if (kind === 'linear'){
+    out = 'linear_kernel(X, Y, c=0.0)\n'
+        + '  return X @ Y.T + c\n\n'
+        + '  x · z  = ' + x[0] + '·' + z[0] + ' + ' + x[1] + '·' + z[1] + ' = <em>' + round(dot,3) + '</em>\n'
+        + '  k(x,z) = <em>' + round(dot, 3) + '</em>\n\n'
+        + '  φ(x) = x. No transformation. This is your baseline.';
+  } else if (kind === 'poly'){
+    const k = Math.pow(1.0 * dot + 1.0, degree);             // alpha=1, c=1 (the defaults)
+    out = 'polynomial_kernel(X, Y, degree=' + degree + ', alpha=1.0, c=1.0)\n'
+        + '  return (alpha * X @ Y.T + c) ** degree\n\n'
+        + '  x · z          = <em>' + round(dot,3) + '</em>\n'
+        + '  alpha*dot + c  = 1.0 · ' + round(dot,3) + ' + 1.0 = <em>' + round(dot + 1, 3) + '</em>\n'
+        + '  ( ... ) ** ' + degree + '     = <em>' + round(k, 3) + '</em>\n\n'
+        + '  Unbounded. Raise the degree and watch it run away — that dynamic\n'
+        + '  range is what kernel_ridge\'s try/except fallback is for.';
+  } else {
+    const k = Math.exp(-gamma * dsq);
+    out = 'rbf_kernel(X, Y, gamma=' + round(gamma,2) + ')\n'
+        + '  dist_sq = np.maximum(X_sq + Y_sq - 2.0 * X @ Y.T, 0.0)\n'
+        + '  return np.exp(-gamma * dist_sq)\n\n'
+        + '  X_sq    = ‖x‖² = <em>' + round(xsq,3) + '</em>\n'
+        + '  Y_sq    = ‖z‖² = <em>' + round(zsq,3) + '</em>\n'
+        + '  X @ Y.T = x · z = <em>' + round(dot,3) + '</em>\n'
+        + '  dist_sq = ' + round(xsq,3) + ' + ' + round(zsq,3) + ' - 2·' + round(dot,3) + ' = <em>' + round(dsq,3) + '</em>\n'
+        + '  k(x,z)  = exp(-' + round(gamma,2) + ' · ' + round(dsq,3) + ') = <em>' + round(k,4) + '</em>\n\n'
+        + '  Always in (0, 1]. Set x = z and dist_sq = 0, so k = 1 exactly.';
+  }
+  el('calcOut').innerHTML = out;
+}
+
+/* ---------- (2c) the RBF similarity curve ---------- */
+function drawCurve(){
+  const g = parseFloat(el('cvG').value);
+  el('cvGv').textContent = round(g, 2);
+
+  const W = 620, H = 250, L = 52, R = 16, T = 14, B = 40;
+  const px = d => L + (d / 4) * (W - L - R);          // distance 0..4  -> pixels
+  const py = v => T + (1 - v) * (H - T - B);          // similarity 0..1 -> pixels
+
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="RBF similarity against distance">';
+  // grid
+  for (let v = 0; v <= 1.0001; v += 0.25){
+    s += '<line x1="' + L + '" y1="' + py(v) + '" x2="' + (W-R) + '" y2="' + py(v) + '" stroke="#21263a"/>';
+    s += '<text x="' + (L-8) + '" y="' + (py(v)+4) + '" text-anchor="end" fill="#626880" font-family="ui-monospace" font-size="10">' + v.toFixed(2) + '</text>';
+  }
+  for (let d = 0; d <= 4.0001; d += 1){
+    s += '<line x1="' + px(d) + '" y1="' + T + '" x2="' + px(d) + '" y2="' + py(0) + '" stroke="#21263a"/>';
+    s += '<text x="' + px(d) + '" y="' + (py(0)+16) + '" text-anchor="middle" fill="#626880" font-family="ui-monospace" font-size="10">' + d + '</text>';
+  }
+  // the curve itself: k = exp(-gamma * d^2)
+  let path = '';
+  for (let i = 0; i <= 240; i++){
+    const d = (i / 240) * 4;
+    const v = Math.exp(-g * d * d);
+    path += (i ? ' L' : 'M') + px(d).toFixed(1) + ',' + py(v).toFixed(1);
+  }
+  s += '<path d="' + path + '" fill="none" stroke="#f0a44a" stroke-width="2.5"/>';
+
+  // the half-similarity radius: exp(-g d^2) = 0.5  =>  d = sqrt(ln2 / g)
+  const dHalf = Math.sqrt(Math.LN2 / g);
+  if (dHalf <= 4){
+    s += '<line x1="' + px(dHalf) + '" y1="' + py(0.5) + '" x2="' + px(dHalf) + '" y2="' + py(0) + '" stroke="#6f8ff5" stroke-dasharray="4 3"/>';
+    s += '<line x1="' + L + '" y1="' + py(0.5) + '" x2="' + px(dHalf) + '" y2="' + py(0.5) + '" stroke="#6f8ff5" stroke-dasharray="4 3"/>';
+    s += '<circle cx="' + px(dHalf) + '" cy="' + py(0.5) + '" r="4" fill="#6f8ff5"/>';
+    s += '<text x="' + (px(dHalf)+8) + '" y="' + (py(0.5)-8) + '" fill="#6f8ff5" font-family="system-ui" font-size="11">half-similarity at d = ' + round(dHalf,2) + '</text>';
+  }
+  s += '<text x="' + (W/2) + '" y="' + (H-4) + '" text-anchor="middle" fill="#8b90a8" font-family="system-ui" font-size="11">Euclidean distance between the two points</text>';
+  s += '<text x="14" y="' + (T+40) + '" fill="#8b90a8" font-family="system-ui" font-size="11" transform="rotate(-90 14,' + (T+40) + ')">k(x, z)</text>';
+  s += '</svg>';
+  el('cvBox').innerHTML = s;
+
+  el('cvCap').innerHTML = '<b>Reach: points further than about ' + round(dHalf,2) +
+    ' units apart already count as less than half-similar.</b> Push γ up and that radius shrinks toward zero — ' +
+    'K becomes the identity matrix and every point is an island. Pull γ down and the radius exceeds your whole dataset — ' +
+    'K becomes a matrix of ones and the model can\'t distinguish anything. The default in <code>rbf_kernel</code>, γ = 1/(2d), sets this radius from the feature count alone; it is a heuristic, not a tuned value.';
+}
+
+/* ---------- (2d) the SMO box-and-line picture ---------- */
+function drawSMO(){
+  const C = parseFloat(el('smC').value);
+  let ai = parseFloat(el('smAi').value);
+  let aj = parseFloat(el('smAj').value);
+  const same = el('smY').value === 'same';
+
+  // The pair must already be feasible, so clamp it into the box before drawing.
+  ai = Math.min(ai, C); aj = Math.min(aj, C);
+  el('smCv').textContent  = round(C, 1);
+  el('smAiv').textContent = round(ai, 2);
+  el('smAjv').textContent = round(aj, 2);
+
+  // ---- exactly the arithmetic from _run_smo ----
+  let L, H, k = 0, sgap = 0;
+  if (same){                       // y[i] == y[j]  ->  alpha_i + alpha_j is fixed
+    k = ai + aj;
+    L = Math.max(0, ai + aj - C);
+    H = Math.min(C, ai + aj);
+  } else {                         // y[i] != y[j]  ->  alpha_j - alpha_i is fixed
+    sgap = aj - ai;
+    L = Math.max(0, aj - ai);
+    H = Math.min(C, C + aj - ai);
+  }
+  // alpha_i as a function of alpha_j, along the constraint line
+  const iOf = j => same ? (k - j) : (j - sgap);
+
+  const AX = 4.4, W = 660, Hh = 300, ox = 62, oy = 258, size = 232;
+  const px = v => ox + (v / AX) * size;
+  const py = v => oy - (v / AX) * size;
+
+  let s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="The box constraint intersected with the equality constraint">';
+  // axes
+  s += '<line x1="' + ox + '" y1="' + oy + '" x2="' + (ox+size+18) + '" y2="' + oy + '" stroke="#3a4160"/>';
+  s += '<line x1="' + ox + '" y1="' + oy + '" x2="' + ox + '" y2="' + (oy-size-18) + '" stroke="#3a4160"/>';
+  s += '<text x="' + (ox+size+22) + '" y="' + (oy+5) + '" fill="#8b90a8" font-family="system-ui" font-style="italic" font-size="13">α&#7522;</text>';
+  s += '<text x="' + (ox-14) + '" y="' + (oy-size-22) + '" fill="#8b90a8" font-family="system-ui" font-style="italic" font-size="13">α&#11388;</text>';
+  s += '<text x="' + (ox-6) + '" y="' + (oy+16) + '" text-anchor="end" fill="#626880" font-family="ui-monospace" font-size="10">0</text>';
+
+  // the box  0 <= alpha <= C
+  s += '<rect x="' + px(0) + '" y="' + py(C) + '" width="' + (px(C)-px(0)) + '" height="' + (py(0)-py(C)) +
+       '" fill="#1b2038" stroke="#6f8ff5" stroke-width="1.5"/>';
+  s += '<text x="' + (px(C)+6) + '" y="' + (py(C)-6) + '" fill="#6f8ff5" font-family="system-ui" font-size="11">the box: 0 ≤ α ≤ C = ' + round(C,1) + '</text>';
+
+  // the constraint line, drawn well past the box so the clipping is visible
+  const j0 = -1, j1 = AX + 1;
+  s += '<line x1="' + px(iOf(j0)) + '" y1="' + py(j0) + '" x2="' + px(iOf(j1)) + '" y2="' + py(j1) +
+       '" stroke="#f0a44a" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.55"/>';
+
+  // the SEGMENT = line ∩ box. Its two ends are L and H.
+  if (H > L){
+    s += '<line x1="' + px(iOf(L)) + '" y1="' + py(L) + '" x2="' + px(iOf(H)) + '" y2="' + py(H) +
+         '" stroke="#f2c75c" stroke-width="4" stroke-linecap="round"/>';
+    s += '<circle cx="' + px(iOf(L)) + '" cy="' + py(L) + '" r="5" fill="#10121b" stroke="#f2c75c" stroke-width="2"/>';
+    s += '<circle cx="' + px(iOf(H)) + '" cy="' + py(H) + '" r="5" fill="#10121b" stroke="#f2c75c" stroke-width="2"/>';
+    s += '<text x="' + (px(iOf(L))+9) + '" y="' + (py(L)+14) + '" fill="#f2c75c" font-family="ui-monospace" font-size="11">L = ' + round(L,2) + '</text>';
+    s += '<text x="' + (px(iOf(H))+9) + '" y="' + (py(H)-6)  + '" fill="#f2c75c" font-family="ui-monospace" font-size="11">H = ' + round(H,2) + '</text>';
+  }
+  // where the pair currently sits
+  s += '<circle cx="' + px(ai) + '" cy="' + py(aj) + '" r="6" fill="#4fbf8b"/>';
+  s += '<text x="' + (px(ai)+10) + '" y="' + (py(aj)-9) + '" fill="#4fbf8b" font-family="ui-monospace" font-size="11">(α&#7522;, α&#11388;) now</text>';
+
+  // annotation panel
+  const tx = ox + size + 90;
+  s += '<text x="' + tx + '" y="66"  fill="#d9dcea" font-family="system-ui" font-size="13">' + (same ? 'y[i] == y[j]' : 'y[i] != y[j]') + '</text>';
+  s += '<text x="' + tx + '" y="90"  fill="#8b90a8" font-family="system-ui" font-size="11.5">' +
+       (same ? 'α&#7522; + α&#11388; is fixed → slope −1' : 'α&#11388; − α&#7522; is fixed → slope +1') + '</text>';
+  s += '<text x="' + tx + '" y="126" fill="#f2c75c" font-family="system-ui" font-size="11.5">gold segment = line ∩ box</text>';
+  s += '<text x="' + tx + '" y="146" fill="#8b90a8" font-family="system-ui" font-size="11.5">α&#11388; may only move along it</text>';
+  s += '<text x="' + tx + '" y="182" fill="#8b90a8" font-family="system-ui" font-size="11.5">L and H are its two ends.</text>';
+  s += '<text x="' + tx + '" y="202" fill="#8b90a8" font-family="system-ui" font-size="11.5">That is all np.clip does.</text>';
+  s += '</svg>';
+  el('smBox').innerHTML = s;
+
+  const branch = same
+    ? 'L = max(0, alpha[i] + alpha[j] - C) = max(0, ' + round(ai,2) + ' + ' + round(aj,2) + ' - ' + round(C,1) + ') = <em>' + round(L,2) + '</em>\n' +
+      'H = min(C, alpha[i] + alpha[j])     = min(' + round(C,1) + ', ' + round(ai+aj,2) + ')       = <em>' + round(H,2) + '</em>'
+    : 'L = max(0, alpha[j] - alpha[i])     = max(0, ' + round(aj,2) + ' - ' + round(ai,2) + ')       = <em>' + round(L,2) + '</em>\n' +
+      'H = min(C, C + alpha[j] - alpha[i]) = min(' + round(C,1) + ', ' + round(C + aj - ai,2) + ')       = <em>' + round(H,2) + '</em>';
+
+  const verdict = (L >= H)
+    ? '\n\nif L >= H: continue\n  → The segment has collapsed to a point. There is no legal move for this\n    pair, so SMO skips it and tries another one.'
+    : '\n\nalpha[j] = np.clip(alpha[j], L, H)\n  → α\u2C7C is free to move anywhere in [' + round(L,2) + ', ' + round(H,2) + '], and α\u1D62 follows\n    along the line to keep Σ α y = 0 intact.';
+
+  el('smOut').innerHTML = (same ? 'if y[i] != y[j]:  →  False, so the else branch runs\n\n' : 'if y[i] != y[j]:  →  True\n\n') + branch + verdict;
+}
+
+/* ---------- (3) the learning system ---------- */
+// localStorage is a key/value store the browser keeps on disk for this file.
+// It survives refreshes and reboots and never touches a network, which is why
+// it suits an offline single-file page better than cookies would.
+const KEY = 'kernelguide.v1.';
+
+function saveStep(id, on){ try{ localStorage.setItem(KEY + 'step.' + id, on ? '1' : '0'); }catch(e){} }
+function loadStep(id){ try{ return localStorage.getItem(KEY + 'step.' + id) === '1'; }catch(e){ return false; } }
+
+function refreshProgress(){
+  const boxes = document.querySelectorAll('.step input[type=checkbox]');
+  let done = 0;
+  boxes.forEach(b => {
+    b.closest('.step').classList.toggle('checked', b.checked);
+    if (b.checked) done++;
+  });
+  const pct = boxes.length ? (done / boxes.length) * 100 : 0;
+  el('progfill').style.width = pct + '%';
+  el('progtxt').textContent = done + ' of ' + boxes.length + ' steps confirmed';
+
+  // mirror completion onto the sidebar's step numbers
+  document.querySelectorAll('.step').forEach(st => {
+    const sec = st.closest('section').id;
+    const link = document.querySelector('#nav a[data-sec="' + sec + '"]');
+    if (link) link.classList.toggle('done', st.querySelector('input').checked);
+  });
+}
+
+function wireSteps(){
+  document.querySelectorAll('.step').forEach(st => {
+    const box = st.querySelector('input[type=checkbox]');
+    const id  = st.dataset.step;
+    box.checked = loadStep(id);
+    box.addEventListener('change', () => { saveStep(id, box.checked); refreshProgress(); });
+  });
+  refreshProgress();
+}
+
+// Remember which collapsible sections were left open.
+function wireDetails(){
+  document.querySelectorAll('details').forEach((d, i) => {
+    const id = KEY + 'det.' + i;
+    try{ if (localStorage.getItem(id) === '1') d.open = true; }catch(e){}
+    d.addEventListener('toggle', () => { try{ localStorage.setItem(id, d.open ? '1' : '0'); }catch(e){} });
+  });
+}
+
+// Highlight the section currently on screen. IntersectionObserver is the
+// cheap way to do this — no scroll handler firing hundreds of times a second.
+function wireSpy(){
+  const links = [...document.querySelectorAll('#nav a')];
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting){
+        links.forEach(a => a.classList.toggle('on', a.dataset.sec === e.target.id));
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px' });
+  document.querySelectorAll('section').forEach(s => obs.observe(s));
+}
+
+function qa(btn){
+  const box = btn.nextElementSibling;
+  box.classList.toggle('show');
+  btn.textContent = box.classList.contains('show') ? 'Hide' : 'Reveal';
+}
+
+el('resetbtn').addEventListener('click', () => {
+  try{
+    Object.keys(localStorage).filter(k => k.startsWith(KEY)).forEach(k => localStorage.removeItem(k));
+  }catch(e){}
+  document.querySelectorAll('.step input[type=checkbox]').forEach(b => b.checked = false);
+  refreshProgress();
+});
+
+/* ---------- boot ---------- */
+['heroG'].forEach(id => el(id).addEventListener('input', drawHero));
+['x1','x2','z1','z2','kSel','pA','pB'].forEach(id => {
+  el(id).addEventListener('input', calc);
+  el(id).addEventListener('change', calc);
+});
+el('cvG').addEventListener('input', drawCurve);
+['smC','smAi','smAj','smY'].forEach(id => {
+  el(id).addEventListener('input', drawSMO);
+  el(id).addEventListener('change', drawSMO);
+});
+
+drawHero(); calc(); drawCurve(); drawSMO();
+wireSteps(); wireDetails(); wireSpy();
+</script>
+</body>
+</html>
