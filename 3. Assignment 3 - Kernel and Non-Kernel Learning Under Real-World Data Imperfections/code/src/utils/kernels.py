@@ -50,6 +50,24 @@ def compute_kernel_matrix(X, Y=None, kernel_type='rbf', **kwargs):
         raise ValueError(f"Unknown kernel type: {kernel_type}")
 
 
+def kernel_diagonal(X, kernel_type='rbf', **kwargs):
+    """diag(K(X, X)) in closed form: O(n*d) time, O(n) memory.
+
+    Avoids building a full n x n matrix just to read its diagonal.
+    """
+    sq = np.sum(X ** 2, axis=1)
+
+    if kernel_type == 'linear':
+        return sq + kwargs.get('c', 0.0)
+    elif kernel_type == 'poly':
+        return (kwargs.get('alpha', 1.0) * sq + kwargs.get('c', 1.0)) \
+            ** kwargs.get('degree', 3)
+    elif kernel_type == 'rbf':
+        return np.ones(X.shape[0], dtype=np.float64)
+    else:
+        raise ValueError(f"Unknown kernel type: {kernel_type}")
+
+
 def center_kernel_matrix(K, K_train=None):
     n = K.shape[0]
     if K_train is None:

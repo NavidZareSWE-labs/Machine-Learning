@@ -13,6 +13,7 @@ class KernelPCA:
         self.K_train = None
         self.eigenvectors = None
         self.eigenvalues = None
+        self.kernel_matrix_bytes_ = 0
 
     def fit(self, X):
         self.X_train = X.copy()
@@ -20,6 +21,7 @@ class KernelPCA:
 
         K = compute_kernel_matrix(X, kernel_type=self.kernel_type, **self.kernel_params)
         self.K_train = K
+        self.kernel_matrix_bytes_ = int(K.nbytes)
 
         K_centered = center_kernel_matrix(K)
 
@@ -62,6 +64,7 @@ class KPCAClassifier:
         self.classifier = None
         self.lr = lr
         self.n_iters = n_iters
+        self.kernel_matrix_bytes_ = 0
 
     def fit(self, X, y):
         from .logistic_regression import LogisticRegression
@@ -74,6 +77,7 @@ class KPCAClassifier:
 
         X_transformed = self.kpca.fit_transform(X)
         X_transformed = np.nan_to_num(X_transformed, nan=0.0)
+        self.kernel_matrix_bytes_ = self.kpca.kernel_matrix_bytes_
 
         self.classifier = LogisticRegression(
             lr=self.lr, n_iters=self.n_iters, reg_lambda=0.01
@@ -82,7 +86,16 @@ class KPCAClassifier:
 
         return self
 
+    def decision_scores(self, X):
+        X_transformed = self.kpca.transform(X)
+        X_transformed = np.nan_to_num(X_transformed, nan=0.0)
+        return self.classifier.predict_proba(X_transformed)
+
     def predict(self, X):
         X_transformed = self.kpca.transform(X)
         X_transformed = np.nan_to_num(X_transformed, nan=0.0)
         return self.classifier.predict(X_transformed)
+
+    @property
+    def classes_(self):
+        return self.classifier.classes_

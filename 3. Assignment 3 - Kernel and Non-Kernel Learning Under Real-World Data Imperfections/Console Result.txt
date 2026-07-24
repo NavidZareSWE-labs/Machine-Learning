@@ -1,14 +1,11 @@
-
-[Done] exited with code=1 in 249.395 seconds
-
-[Running] python -u "c:\Users\-Navid-\Desktop\code\main.py"
+[Running] python -u "c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\main.py"
 ================================================================================
 HOMEWORK 3: KERNEL AND NON-KERNEL LEARNING
 UNDER REAL-WORLD DATA IMPERFECTIONS
 ================================================================================
-Start time: 2026-06-26 03:21:22
-Data directory: c:\Users\-Navid-\Desktop\code\data
-Output directory: c:\Users\-Navid-\Desktop\code\output
+Start time: 2026-07-17 14:23:17
+Data directory: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\data
+Output directory: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output
 
 ######################################################################
 # SECTION 1: DATA LOADING & ENGINEERING
@@ -17,7 +14,7 @@ Output directory: c:\Users\-Navid-\Desktop\code\output
 ================================================================================
 DATASET 1: AIRBNB OPEN DATA
 ================================================================================
-  Loading from: c:\Users\-Navid-\Desktop\code\data\airbnb_5cities_listings.csv
+  Loading from: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\data\airbnb_5cities_listings.csv
   Raw shape: (39446, 80)
   Cities: ['Austin', 'Amsterdam', 'Albany', 'Boston', 'Berlin']
 
@@ -60,15 +57,19 @@ DATASET 1: AIRBNB OPEN DATA
     Dropped 1 near-constant features: ['has_availability']
 
   [Step 10] Preparing final feature matrices...
-    Feature matrix shape: (24564, 46)
+    Dropped 1 price-derived feature(s) from the REGRESSION matrix: ['estimated_revenue_l365d']
+    Retained for CLASSIFICATION (not superhost-derived): ['estimated_revenue_l365d']
+    Regression feature matrix:     (24564, 45)
+    Classification feature matrix: (24564, 46)
     Regression target (price): mean=186.69, std=160.22
-    Classification target (superhost): {np.int32(0): np.int64(14907), np.int32(1): np.int64(9657)}
-    Feature names (46): ['host_response_time', 'host_response_rate', 'host_acceptance_rate', 'host_listings_count', 'host_total_listings_count', 'host_has_profile_pic', 'host_identity_verified', 'latitude', 'longitude', 'accommodates']...
+    Classification target (superhost): {0: 14907, 1: 9657}
+    Feature names (45 reg / 46 clf): ['host_response_time', 'host_response_rate', 'host_acceptance_rate', 'host_listings_count', 'host_total_listings_count', 'host_has_profile_pic', 'host_identity_verified', 'latitude', 'longitude', 'accommodates']...
+    NOTE: superhost status is awarded against thresholds on response rate, rating and stay count, all present as features, so the classifier partly recovers a rule. Inherent to the task; disclose in the report.
 
 ================================================================================
 DATASET 2: NYC 311 SERVICE REQUESTS
 ================================================================================
-  Loading from: c:\Users\-Navid-\Desktop\code\data\311_Service_Requests_from_2020_to_Present_20260618.csv
+  Loading from: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\data\311_Service_Requests_from_2020_to_Present_20260618.csv
   [Step 1] Loading with stratified sampling (max 80000 rows)...
     Loaded shape: (80000, 44)
 
@@ -101,7 +102,7 @@ DATASET 2: NYC 311 SERVICE REQUESTS
 ================================================================================
 DATASET 3: IBM HR EMPLOYEE ATTRITION
 ================================================================================
-  Loading from: c:\Users\-Navid-\Desktop\code\data\WA_Fn-UseC_-HR-Employee-Attrition.csv
+  Loading from: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\data\WA_Fn-UseC_-HR-Employee-Attrition.csv
   Raw shape: (1470, 35)
 
   [Step 1] Target distribution...
@@ -136,13 +137,13 @@ DATASET 3: IBM HR EMPLOYEE ATTRITION
 
   [Step 7] Preparing final arrays...
     Feature matrix: (1470, 23)
-    Target distribution: {np.int32(0): np.int64(1233), np.int32(1): np.int64(237)}
+    Target distribution: {0: 1233, 1: 237}
     Features (23): ['Age', 'BusinessTravel', 'DailyRate', 'DistanceFromHome', 'Education', 'EnvironmentSatisfaction', 'HourlyRate', 'JobInvolvement', 'JobLevel', 'JobSatisfaction']...
 
 ================================================================================
 DATASET 4: ONLINE RETAIL TRANSACTIONS
 ================================================================================
-  Loading from: c:\Users\-Navid-\Desktop\code\data\Online Retail.xlsx
+  Loading from: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\data\Online Retail.xlsx
   Raw shape: (200000, 8)
   Columns: ['InvoiceNo', 'StockCode', 'Description', 'Quantity', 'InvoiceDate', 'UnitPrice', 'CustomerID', 'Country']
 
@@ -154,28 +155,41 @@ DATASET 4: ONLINE RETAIL TRANSACTIONS
     Unique customers: 2658
     Date range: 2010-12-01 08:26:00 to 2011-05-22 14:29:00
 
-  [Step 2] Aggregating to customer-level features...
-    Customer-level features: (2658, 15)
+  [Step 2] Splitting transaction log on the time axis...
+    Cutoff date: 2011-03-31 22:16:06
+    Feature window: 2010-12-01 08:26:00 -> 2011-03-31 22:16:06 (94488 transactions, 2134 customers)
+    Target window:  2011-03-31 22:16:06 -> 2011-05-22 14:29:00 (44084 transactions, 1417 customers)
+
+  [Step 3] Aggregating customer-level features (feature window only)...
+    Customer-level features: (2134, 15)
     Features: ['CustomerID', 'recency', 'frequency', 'monetary', 'avg_order_value', 'total_quantity', 'avg_quantity_per_order', 'unique_products', 'avg_unit_price', 'max_single_purchase', 'std_order_value', 'n_transactions', 'country_diversity', 'preferred_dow', 'preferred_hour']
 
-  [Step 3] Creating customer segments...
+  [Step 4] Aggregating future behaviour (target window only)...
+    Customers active in feature window: 2134
+    Returned in target window:   893
+    Churned (zero future spend): 1241 (58.2%)
+
+  [Step 5] Creating customer segments from the target window...
     Segment distribution:
-      High-Value: 747 (28.1%)
-      Loyal: 724 (27.2%)
-      At-Risk: 912 (34.3%)
-      Lost: 275 (10.3%)
+      High-Value: 229 (10.7%)
+      Loyal: 254 (11.9%)
+      At-Risk: 351 (16.4%)
+      Lost: 1300 (60.9%)
+    NOTE: 'Lost' now absorbs all churned customers by construction.
 
-  [Step 4] Setting regression target (monetary = total spending)...
-    Log-monetary: mean=6.24, std=1.13
+  [Step 6] Setting regression target (future spending)...
+    Log future monetary: mean=2.56, std=3.08
+    Zero-spend point mass: 1241 customers
 
-  [Step 5] Removing outliers...
-    Removed 27 extreme spenders (>11385.62)
+  [Step 7] Removing outliers...
+    Removed 22 extreme future spenders (>4507.84)
 
-  [Step 6] Preparing feature arrays...
-    Feature matrix: (2631, 13)
-    Classification target (segments): {np.int32(0): np.int64(721), np.int32(1): np.int64(724), np.int32(2): np.int64(911), np.int32(3): np.int64(275)}
-    Regression target (log_monetary): mean=6.20
-    Features: ['recency', 'frequency', 'avg_order_value', 'total_quantity', 'avg_quantity_per_order', 'unique_products', 'avg_unit_price', 'max_single_purchase', 'std_order_value', 'n_transactions', 'country_diversity', 'preferred_dow', 'preferred_hour']
+  [Step 8] Preparing feature arrays...
+    Feature matrix: (2112, 14)
+    Classification target (segments): {0: 210, 1: 251, 2: 351, 3: 1300}
+    Regression target (log_future_monetary): mean=2.49
+    Features: ['recency', 'frequency', 'monetary', 'avg_order_value', 'total_quantity', 'avg_quantity_per_order', 'unique_products', 'avg_unit_price', 'max_single_purchase', 'std_order_value', 'n_transactions', 'country_diversity', 'preferred_dow', 'preferred_hour']
+    Leakage check: avg_order_value * n_transactions now reconstructs FEATURE-window spend, not the target.
 
 **********************************************************************
 * PROCESSING DATASET: Airbnb
@@ -191,6 +205,8 @@ DATA QUALITY INVESTIGATION: Airbnb
 
   --- Missing Data Analysis: Airbnb ---
     Total cells: 3155680, Total missing: 353600 (11.21%)
+    NOTE: classification below is heuristic. MAR vs MNAR is not
+          identifiable from observed data; treat as indicative.
     calendar_updated: 39446 missing (100.0%), Type: MNAR
     neighbourhood_group_cleansed: 25172 missing (63.8%), Type: MAR
       Max correlation with missingness: longitude (r=0.628)
@@ -222,8 +238,9 @@ DATA QUALITY INVESTIGATION: Airbnb
       Max correlation with missingness: host_id (r=0.518)
 
   --- Outlier Analysis: Airbnb ---
-    Running Isolation Forest (n_trees=100, max_samples=256)...
-    Isolation Forest total anomalies (multivariate): 655/5000
+    Running Isolation Forest (n_trees=100, max_samples=256, contamination=5%)...
+    Isolation Forest anomalies (multivariate): 250/5000 (score threshold 0.5451)
+    Score distribution: min=0.3825, median=0.4333, max=0.6942
     id: Z-score=0, IQR=0, IsoForest=252 (n=39446)
     scrape_id: Z-score=453, IQR=4159, IsoForest=518 (n=39446)
     host_id: Z-score=0, IQR=0, IsoForest=251 (n=39446)
@@ -242,32 +259,39 @@ DATA QUALITY INVESTIGATION: Airbnb
     Analyzed 15 numeric columns, found outliers in 15
 
   --- Feature Quality Analysis: Airbnb ---
-    Near-constant features: ['calendar_updated']
-    Highly correlated pairs (r > 0.90): 8
-      host_listings_count <-> host_total_listings_count: r=0.901
-      latitude <-> longitude: r=0.978
-      minimum_nights <-> minimum_minimum_nights: r=0.976
-      minimum_nights <-> minimum_nights_avg_ntm: r=0.979
-      minimum_minimum_nights <-> minimum_nights_avg_ntm: r=0.989
+    No near-constant features found.
+    Highly correlated pairs (r > 0.90): 7
+      latitude <-> longitude: r=0.998
+      minimum_nights <-> minimum_minimum_nights: r=0.958
+      minimum_nights <-> minimum_nights_avg_ntm: r=0.964
+      minimum_minimum_nights <-> minimum_nights_avg_ntm: r=0.981
+      maximum_maximum_nights <-> maximum_nights_avg_ntm: r=1.000
+    No linear target leakage detected (|r| > 0.95).
+    (Correlation cannot detect ratio/product reconstructions; see loader guards.)
 
   --- Label Quality Analysis: Airbnb (target: price) ---
-    Class distribution: {'$90.00': np.int64(234), '$80.00': np.int64(222), '$100.00': np.int64(214), '$85.00': np.int64(209), '$180.00': np.int64(201), '$95.00': np.int64(199), '$120.00': np.int64(195), '$60.00': np.int64(194), '$81.00': np.int64(191), '$65.00': np.int64(186)}
+    Class distribution: {'$90.00': 234, '$80.00': 222, '$100.00': 214, '$85.00': 209, '$180.00': 201, '$95.00': 199, '$120.00': 195, '$60.00': 194, '$81.00': 191, '$65.00': 186}
     Imbalance ratio (max/min): 234.00
     Potential bias: temporal/geographic distribution should be examined in report
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\Airbnb_missing_data.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\Airbnb_outlier_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\Airbnb_feature_distributions.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\Airbnb_correlation_matrix.png
+
+  --- Label Quality Analysis: Airbnb (target: host_is_superhost) ---
+    Class distribution: {'f': 26706, 't': 12061}
+    Imbalance ratio (max/min): 2.21
+    Potential bias: temporal/geographic distribution should be examined in report
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\Airbnb_missing_data.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\Airbnb_outlier_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\Airbnb_feature_distributions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\Airbnb_correlation_matrix.png
 
 ######################################################################
 # SECTION 3: Non-Kernel Models - Airbnb
 ######################################################################
 
   Classification data: X=(24564, 46), classes=2
-  Train: (2401, 46), Test: (599, 46)
+  Train: (2401, 46), Test: (599, 46) (split before resampling)
 
   >> Logistic Regression (Airbnb)
-  [Timer] LogReg train - Airbnb: 0.0190 seconds
+  [Timer] LogReg train - Airbnb: 0.0625 seconds
   [Airbnb] Logistic Regression Classification Metrics:
     Num test samples:       599
     Correct predictions:    489
@@ -279,6 +303,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.816102
     Recall (weighted):      0.816361
     F1-score (weighted):    0.816222
+    ROC-AUC (binary):        0.878776
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8466     0.8512     0.8489        363
@@ -287,10 +312,10 @@ DATA QUALITY INVESTIGATION: Airbnb
                         0        1
                0      309       54
                1       56      180
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_LogisticReg_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_LogisticReg_confusion_matrix.png
 
   >> KNN Classifier (Airbnb)
-  [Timer] KNN train - Airbnb: 0.0003 seconds
+  [Timer] KNN train - Airbnb: 0.0004 seconds
   [Airbnb] KNN Classification Metrics:
     Num test samples:       599
     Correct predictions:    478
@@ -302,6 +327,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.797330
     Recall (weighted):      0.797997
     F1-score (weighted):    0.797606
+    ROC-AUC (binary):        0.846798
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8288     0.8402     0.8345        363
@@ -310,10 +336,10 @@ DATA QUALITY INVESTIGATION: Airbnb
                         0        1
                0      305       58
                1       63      173
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_KNN_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_KNN_confusion_matrix.png
 
   >> Decision Tree Classifier (Airbnb)
-  [Timer] DTree train - Airbnb: 2.1908 seconds
+  [Timer] DTree train - Airbnb: 3.6986 seconds
   [Airbnb] Decision Tree Classification Metrics:
     Num test samples:       599
     Correct predictions:    496
@@ -325,6 +351,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.832302
     Recall (weighted):      0.828047
     F1-score (weighted):    0.829148
+    ROC-AUC (binary):        0.831647
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8801     0.8292     0.8539        363
@@ -333,37 +360,41 @@ DATA QUALITY INVESTIGATION: Airbnb
                         0        1
                0      301       62
                1       41      195
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_DecisionTree_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_DecisionTree_confusion_matrix.png
 
 ######################################################################
 # SECTION 3+4: Kernel Models - Airbnb
 ######################################################################
   Kernel train: (241, 46), test: (59, 46)
+  Kernel test distribution: {0: 34, 1: 25}
 
   >> Kernel SVM (linear) (Airbnb)
-  [Timer] KernelSVM_linear - Airbnb: 38.4852 seconds
+  [Timer] KernelSVM_linear - Airbnb: 0.4994 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelSVM_linear Classification Metrics:
     Num test samples:       59
-    Correct predictions:    45
-    Wrong predictions:      14
-    Accuracy:               0.762712
-    Precision (macro):      0.758102
-    Recall (macro):         0.762353
-    F1-score (macro):       0.759324
-    Precision (weighted):   0.766400
-    Recall (weighted):      0.762712
-    F1-score (weighted):    0.763680
+    Correct predictions:    46
+    Wrong predictions:      13
+    Accuracy:               0.779661
+    Precision (macro):      0.774476
+    Recall (macro):         0.777059
+    F1-score (macro):       0.775534
+    Precision (weighted):   0.781143
+    Recall (weighted):      0.779661
+    F1-score (weighted):    0.780177
+    ROC-AUC (binary):        0.821176
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8125     0.7647     0.7879         34
-    1                0.7037     0.7600     0.7308         25
+    0                0.8182     0.7941     0.8060         34
+    1                0.7308     0.7600     0.7451         25
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0       26        8
+               0       27        7
                1        6       19
 
   >> Kernel Ridge Classifier (linear) (Airbnb)
-  [Timer] KRR_clf_linear - Airbnb: 0.0117 seconds
+  [Timer] KRR_clf_linear - Airbnb: 0.0027 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KRR_clf_linear Classification Metrics:
     Num test samples:       59
     Correct predictions:    34
@@ -375,6 +406,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.547149
     Recall (weighted):      0.576271
     F1-score (weighted):    0.472843
+    ROC-AUC (binary):        0.796471
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5818     0.9412     0.7191         34
@@ -385,7 +417,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1       23        2
 
   >> Kernel KNN (linear) (Airbnb)
-  [Timer] KernelKNN_linear - Airbnb: 0.0014 seconds
+  [Timer] KernelKNN_linear - Airbnb: 0.0000 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelKNN_linear Classification Metrics:
     Num test samples:       59
     Correct predictions:    46
@@ -397,6 +430,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.781143
     Recall (weighted):      0.779661
     F1-score (weighted):    0.780177
+    ROC-AUC (binary):        0.854118
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8182     0.7941     0.8060         34
@@ -407,7 +441,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        6       19
 
   >> Kernel SVM (poly) (Airbnb)
-  [Timer] KernelSVM_poly - Airbnb: 0.2182 seconds
+  [Timer] KernelSVM_poly - Airbnb: 0.1522 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelSVM_poly Classification Metrics:
     Num test samples:       59
     Correct predictions:    45
@@ -419,6 +454,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.772453
     Recall (weighted):      0.762712
     F1-score (weighted):    0.764085
+    ROC-AUC (binary):        0.847059
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8333     0.7353     0.7812         34
@@ -429,7 +465,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        5       20
 
   >> Kernel Ridge Classifier (poly) (Airbnb)
-  [Timer] KRR_clf_poly - Airbnb: 0.0044 seconds
+  [Timer] KRR_clf_poly - Airbnb: 0.0036 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KRR_clf_poly Classification Metrics:
     Num test samples:       59
     Correct predictions:    46
@@ -441,6 +478,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.779099
     Recall (weighted):      0.779661
     F1-score (weighted):    0.777284
+    ROC-AUC (binary):        0.849412
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.7838     0.8529     0.8169         34
@@ -451,7 +489,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        8       17
 
   >> Kernel KNN (poly) (Airbnb)
-  [Timer] KernelKNN_poly - Airbnb: 0.0031 seconds
+  [Timer] KernelKNN_poly - Airbnb: 0.0000 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelKNN_poly Classification Metrics:
     Num test samples:       59
     Correct predictions:    38
@@ -463,6 +502,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.740517
     Recall (weighted):      0.644068
     F1-score (weighted):    0.629901
+    ROC-AUC (binary):        0.732353
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8824     0.4412     0.5882         34
@@ -473,7 +513,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        2       23
 
   >> Kernel SVM (rbf) (Airbnb)
-  [Timer] KernelSVM_rbf - Airbnb: 0.4535 seconds
+  [Timer] KernelSVM_rbf - Airbnb: 0.2875 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelSVM_rbf Classification Metrics:
     Num test samples:       59
     Correct predictions:    46
@@ -485,6 +526,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.785988
     Recall (weighted):      0.779661
     F1-score (weighted):    0.780812
+    ROC-AUC (binary):        0.880000
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8387     0.7647     0.8000         34
@@ -495,7 +537,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        5       20
 
   >> Kernel Ridge Classifier (rbf) (Airbnb)
-  [Timer] KRR_clf_rbf - Airbnb: 0.0033 seconds
+  [Timer] KRR_clf_rbf - Airbnb: 0.0263 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KRR_clf_rbf Classification Metrics:
     Num test samples:       59
     Correct predictions:    45
@@ -507,6 +550,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.772453
     Recall (weighted):      0.762712
     F1-score (weighted):    0.764085
+    ROC-AUC (binary):        0.863529
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8333     0.7353     0.7812         34
@@ -517,7 +561,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        5       20
 
   >> Kernel KNN (rbf) (Airbnb)
-  [Timer] KernelKNN_rbf - Airbnb: 0.0007 seconds
+  [Timer] KernelKNN_rbf - Airbnb: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KernelKNN_rbf Classification Metrics:
     Num test samples:       59
     Correct predictions:    46
@@ -529,6 +574,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.781143
     Recall (weighted):      0.779661
     F1-score (weighted):    0.780177
+    ROC-AUC (binary):        0.854118
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.8182     0.7941     0.8060         34
@@ -539,7 +585,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                1        6       19
 
   >> KPCA + LogReg (Airbnb)
-  [Timer] KPCA_LogReg - Airbnb: 0.0561 seconds
+  [Timer] KPCA_LogReg - Airbnb: 0.0268 seconds
+    [Memory] kernel matrix measured=0.46 MB, analytic n^2*8=0.46 MB (n_train=241)
   [Airbnb] KPCA+LogReg Classification Metrics:
     Num test samples:       59
     Correct predictions:    37
@@ -551,6 +598,7 @@ DATA QUALITY INVESTIGATION: Airbnb
     Precision (weighted):   0.773608
     Recall (weighted):      0.627119
     F1-score (weighted):    0.526204
+    ROC-AUC (binary):        0.844706
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.6071     1.0000     0.7556         34
@@ -559,8 +607,8 @@ DATA QUALITY INVESTIGATION: Airbnb
                         0        1
                0       34        0
                1       22        3
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\Airbnb_kernel_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_Accuracy_classification_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\Airbnb_kernel_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_Accuracy_classification_comparison.png
 
   Failure analysis using DecisionTree...
 
@@ -576,25 +624,25 @@ DATA QUALITY INVESTIGATION: Airbnb
       #8: idx=592, actual=1, predicted=0
       #9: idx=408, actual=1, predicted=0
       #10: idx=589, actual=0, predicted=1
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\Airbnb_DecisionTree_worst_predictions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\Airbnb_DecisionTree_worst_predictions.png
 
-  Regression data: X=(24564, 46), target mean=186.6876
-  Regression Train: (2400, 46), Test: (600, 46)
+  Regression data: X=(24564, 45), target mean=186.6876
+  Regression Train: (2400, 45), Test: (600, 45)
 
   >> Linear Regression (Airbnb)
-  [Timer] LinReg train - Airbnb: 0.0021 seconds
+  [Timer] LinReg train - Airbnb: 0.0006 seconds
   [Airbnb] Linear Regression Regression Metrics:
     Num test samples:   600
     Target mean:        194.455000
     Target std:         175.452295
-    Prediction mean:    188.544576
-    Prediction std:     122.668911
-    MSE:                12424.997134
-    RMSE:               111.467471
-    MAE:                67.396311
-    R-squared (R2):     0.596375
+    Prediction mean:    190.407770
+    Prediction std:     119.574160
+    MSE:                14538.495921
+    RMSE:               120.575685
+    MAE:                76.334130
+    R-squared (R2):     0.527718
     Target variance:    30783.507975
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_LinearReg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_LinearReg_regression_scatter.png
 
   >> KNN Regressor (Airbnb)
   [Timer] KNN_Reg train - Airbnb: 0.0001 seconds
@@ -602,131 +650,131 @@ DATA QUALITY INVESTIGATION: Airbnb
     Num test samples:   600
     Target mean:        194.455000
     Target std:         175.452295
-    Prediction mean:    180.643333
-    Prediction std:     112.981300
-    MSE:                15635.511133
-    RMSE:               125.042037
-    MAE:                75.397000
-    R-squared (R2):     0.492082
+    Prediction mean:    187.023333
+    Prediction std:     120.951106
+    MSE:                16279.720333
+    RMSE:               127.592007
+    MAE:                81.040333
+    R-squared (R2):     0.471154
     Target variance:    30783.507975
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_KNN_Reg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_KNN_Reg_regression_scatter.png
 
   >> Decision Tree Regressor (Airbnb)
-  [Timer] DTree_Reg train - Airbnb: 2.4257 seconds
+  [Timer] DTree_Reg train - Airbnb: 2.2013 seconds
   [Airbnb] Decision Tree Regressor Regression Metrics:
     Num test samples:   600
     Target mean:        194.455000
     Target std:         175.452295
-    Prediction mean:    194.907810
-    Prediction std:     158.080254
-    MSE:                14960.768127
-    RMSE:               122.314219
-    MAE:                68.062042
-    R-squared (R2):     0.514001
+    Prediction mean:    196.398049
+    Prediction std:     155.994765
+    MSE:                19212.078967
+    RMSE:               138.607644
+    MAE:                82.452284
+    R-squared (R2):     0.375897
     Target variance:    30783.507975
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_DTree_Reg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_DTree_Reg_regression_scatter.png
 
   >> Kernel Ridge Regression (linear) (Airbnb)
-  [Timer] KRR_reg_linear - Airbnb: 0.0016 seconds
+  [Timer] KRR_reg_linear - Airbnb: 0.0046 seconds
   [Airbnb] KRR_reg_linear Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    14.632307
-    Prediction std:     203.607519
-    MSE:                55142.360784
-    RMSE:               234.824106
-    MAE:                209.265571
-    R-squared (R2):     -0.300187
+    Prediction mean:    8.546332
+    Prediction std:     186.164833
+    MSE:                61791.402975
+    RMSE:               248.578766
+    MAE:                216.716390
+    R-squared (R2):     -0.456963
     Target variance:    42411.106667
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\Airbnb_KRR_reg_linear_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\Airbnb_KRR_reg_linear_regression_scatter.png
 
   >> Kernel KNN Regressor (linear) (Airbnb)
-  [Timer] KernelKNN_reg_linear - Airbnb: 0.0028 seconds
+  [Timer] KernelKNN_reg_linear - Airbnb: 0.0001 seconds
   [Airbnb] KernelKNN_reg_linear Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    210.243333
-    Prediction std:     173.437351
-    MSE:                20030.627333
-    RMSE:               141.529599
-    MAE:                90.870000
-    R-squared (R2):     0.527703
+    Prediction mean:    211.340000
+    Prediction std:     169.148480
+    MSE:                22143.190667
+    RMSE:               148.805883
+    MAE:                94.800000
+    R-squared (R2):     0.477892
     Target variance:    42411.106667
 
   >> Kernel Ridge Regression (poly) (Airbnb)
-  [Timer] KRR_reg_poly - Airbnb: 0.0185 seconds
+  [Timer] KRR_reg_poly - Airbnb: 0.0029 seconds
   [Airbnb] KRR_reg_poly Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    250.868233
-    Prediction std:     324.627396
-    MSE:                81077.482352
-    RMSE:               284.741079
-    MAE:                144.250317
-    R-squared (R2):     -0.911704
+    Prediction mean:    246.070301
+    Prediction std:     325.028554
+    MSE:                84445.811027
+    RMSE:               290.595614
+    MAE:                167.456873
+    R-squared (R2):     -0.991125
     Target variance:    42411.106667
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\Airbnb_KRR_reg_poly_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\Airbnb_KRR_reg_poly_regression_scatter.png
 
   >> Kernel KNN Regressor (poly) (Airbnb)
-  [Timer] KernelKNN_reg_poly - Airbnb: 0.0026 seconds
+  [Timer] KernelKNN_reg_poly - Airbnb: 0.0001 seconds
   [Airbnb] KernelKNN_reg_poly Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    183.080000
-    Prediction std:     131.591961
-    MSE:                25663.377333
-    RMSE:               160.197932
-    MAE:                91.146667
-    R-squared (R2):     0.394890
+    Prediction mean:    183.383333
+    Prediction std:     128.895096
+    MSE:                24916.232667
+    RMSE:               157.848765
+    MAE:                89.683333
+    R-squared (R2):     0.412507
     Target variance:    42411.106667
 
   >> Kernel Ridge Regression (rbf) (Airbnb)
-  [Timer] KRR_reg_rbf - Airbnb: 0.0077 seconds
+  [Timer] KRR_reg_rbf - Airbnb: 0.0026 seconds
   [Airbnb] KRR_reg_rbf Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    185.533505
-    Prediction std:     140.466797
-    MSE:                15117.085002
-    RMSE:               122.951556
-    MAE:                79.900006
-    R-squared (R2):     0.643558
+    Prediction mean:    187.700171
+    Prediction std:     137.972229
+    MSE:                16311.537802
+    RMSE:               127.716631
+    MAE:                85.982274
+    R-squared (R2):     0.615395
     Target variance:    42411.106667
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\Airbnb_KRR_reg_rbf_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\Airbnb_KRR_reg_rbf_regression_scatter.png
 
   >> Kernel KNN Regressor (rbf) (Airbnb)
-  [Timer] KernelKNN_reg_rbf - Airbnb: 0.0024 seconds
+  [Timer] KernelKNN_reg_rbf - Airbnb: 0.0001 seconds
   [Airbnb] KernelKNN_reg_rbf Regression Metrics:
     Num test samples:   60
     Target mean:        216.400000
     Target std:         205.939570
-    Prediction mean:    210.243333
-    Prediction std:     173.437351
-    MSE:                20030.627333
-    RMSE:               141.529599
-    MAE:                90.870000
-    R-squared (R2):     0.527703
+    Prediction mean:    211.340000
+    Prediction std:     169.148480
+    MSE:                22143.190667
+    RMSE:               148.805883
+    MAE:                94.800000
+    R-squared (R2):     0.477892
     Target variance:    42411.106667
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\Airbnb_R_squared_regression_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\Airbnb_R_squared_regression_comparison.png
 
   --- Failure Analysis: LinearReg on Airbnb ---
-    10 worst prediction indices: [138, 79, 314, 447, 63, 118, 160, 403, 161, 554]
-      #1: idx=138, actual=1331.0000, predicted=386.0390, error=944.9610
-      #2: idx=79, actual=1153.0000, predicted=251.8953, error=901.1047
-      #3: idx=314, actual=1156.0000, predicted=470.2064, error=685.7936
-      #4: idx=447, actual=1125.0000, predicted=579.3548, error=545.6452
-      #5: idx=63, actual=846.0000, predicted=325.8322, error=520.1678
-      #6: idx=118, actual=1177.0000, predicted=666.9138, error=510.0862
-      #7: idx=160, actual=888.0000, predicted=394.3656, error=493.6344
-      #8: idx=403, actual=858.0000, predicted=366.5162, error=491.4838
-      #9: idx=161, actual=1012.0000, predicted=544.2261, error=467.7739
-      #10: idx=554, actual=529.0000, predicted=169.7824, error=359.2176
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\Airbnb_LinearReg_worst_predictions.png
+    10 worst prediction indices: [79, 138, 447, 314, 160, 403, 241, 161, 63, 229]
+      #1: idx=79, actual=1153.0000, predicted=269.6849, error=883.3151
+      #2: idx=138, actual=1331.0000, predicted=459.2558, error=871.7442
+      #3: idx=447, actual=1125.0000, predicted=531.8788, error=593.1212
+      #4: idx=314, actual=1156.0000, predicted=612.8856, error=543.1144
+      #5: idx=160, actual=888.0000, predicted=371.5537, error=516.4463
+      #6: idx=403, actual=858.0000, predicted=363.6768, error=494.3232
+      #7: idx=241, actual=598.0000, predicted=120.2942, error=477.7058
+      #8: idx=161, actual=1012.0000, predicted=544.2697, error=467.7303
+      #9: idx=63, actual=846.0000, predicted=390.8331, error=455.1669
+      #10: idx=229, actual=675.0000, predicted=273.7588, error=401.2412
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\Airbnb_LinearReg_worst_predictions.png
 
 **********************************************************************
 * PROCESSING DATASET: NYC_311
@@ -742,6 +790,8 @@ DATA QUALITY INVESTIGATION: NYC_311
 
   --- Missing Data Analysis: NYC_311 ---
     Total cells: 3520000, Total missing: 963425 (27.37%)
+    NOTE: classification below is heuristic. MAR vs MNAR is not
+          identifiable from observed data; treat as indicative.
     Taxi Company Borough: 79940 missing (99.9%), Type: MNAR
     Road Ramp: 79798 missing (99.7%), Type: MNAR
     Bridge Highway Direction: 79796 missing (99.7%), Type: MNAR
@@ -764,8 +814,9 @@ DATA QUALITY INVESTIGATION: NYC_311
       Max correlation with missingness: BBL (r=0.123)
 
   --- Outlier Analysis: NYC_311 ---
-    Running Isolation Forest (n_trees=100, max_samples=256)...
-    Isolation Forest total anomalies (multivariate): 2043/5000
+    Running Isolation Forest (n_trees=100, max_samples=256, contamination=5%)...
+    Isolation Forest anomalies (multivariate): 250/5000 (score threshold 0.5950)
+    Score distribution: min=0.4177, median=0.4886, max=0.7012
     Unique Key: Z-score=0, IQR=0, IsoForest=252 (n=80000)
     Incident Zip: Z-score=1, IQR=1, IsoForest=256 (n=79281)
     Council District: Z-score=0, IQR=0, IsoForest=265 (n=77910)
@@ -775,27 +826,34 @@ DATA QUALITY INVESTIGATION: NYC_311
     Analyzed 6 numeric columns, found outliers in 6
 
   --- Feature Quality Analysis: NYC_311 ---
-    No near-constant features found.
+    Near-constant features: ['created_month', 'created_year']
     No highly correlated pairs found (r > 0.90).
+    No linear target leakage detected (|r| > 0.95).
+    (Correlation cannot detect ratio/product reconstructions; see loader guards.)
 
   --- Label Quality Analysis: NYC_311 (target: Problem (formerly Complaint Type)) ---
-    Class distribution: {'Illegal Parking': np.int64(13513), 'Noise - Residential': np.int64(7202), 'Noise - Street/Sidewalk': np.int64(5622), 'Blocked Driveway': np.int64(4200), 'Water System': np.int64(3207), 'UNSANITARY CONDITION': np.int64(2721), 'Street Condition': np.int64(2485), 'Damaged Tree': np.int64(1774), 'Abandoned Vehicle': np.int64(1598), 'PLUMBING': np.int64(1552)}
+    Class distribution: {'Illegal Parking': 13513, 'Noise - Residential': 7202, 'Noise - Street/Sidewalk': 5622, 'Blocked Driveway': 4200, 'Water System': 3207, 'UNSANITARY CONDITION': 2721, 'Street Condition': 2485, 'Damaged Tree': 1774, 'Abandoned Vehicle': 1598, 'PLUMBING': 1552}
     Imbalance ratio (max/min): 13513.00
     Potential bias: temporal/geographic distribution should be examined in report
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\NYC_311_missing_data.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\NYC_311_outlier_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\NYC_311_feature_distributions.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\NYC_311_correlation_matrix.png
+
+  --- Label Quality Analysis: NYC_311 (target: resolution_hours) ---
+    Distribution: mean=12.27, std=24.68, skew=3.08
+    Range: [-144.00, 168.85], n_unique=29852
+    Potential bias: temporal/geographic distribution should be examined in report
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\NYC_311_missing_data.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\NYC_311_outlier_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\NYC_311_feature_distributions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\NYC_311_correlation_matrix.png
 
 ######################################################################
 # SECTION 3: Non-Kernel Models - NYC_311
 ######################################################################
 
   Classification data: X=(43874, 41), classes=10
-  Train: (2405, 41), Test: (595, 41)
+  Train: (2405, 41), Test: (595, 41) (split before resampling)
 
   >> Logistic Regression (NYC_311)
-  [Timer] LogReg train - NYC_311: 0.1663 seconds
+  [Timer] LogReg train - NYC_311: 0.1631 seconds
   [NYC_311] Logistic Regression Classification Metrics:
     Num test samples:       595
     Correct predictions:    414
@@ -807,6 +865,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.602441
     Recall (weighted):      0.695798
     F1-score (weighted):    0.628309
+    ROC-AUC (macro OvR):        0.933680
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5819     0.9355     0.7175        186
@@ -831,7 +890,7 @@ DATA QUALITY INVESTIGATION: NYC_311
                7        0        0        0        0        0        0        6       17        0        0
                8       23        0        1        0        0        0        0        0        0        0
                9        0        0        0        0        0       18        0        0        0        0
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_LogisticReg_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_LogisticReg_confusion_matrix.png
 
   >> KNN Classifier (NYC_311)
   [Timer] KNN train - NYC_311: 0.0002 seconds
@@ -846,6 +905,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.631265
     Recall (weighted):      0.663866
     F1-score (weighted):    0.636247
+    ROC-AUC (macro OvR):        0.884443
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5929     0.8065     0.6834        186
@@ -870,10 +930,10 @@ DATA QUALITY INVESTIGATION: NYC_311
                7        0        0        0        0        0        0        8       14        1        0
                8       18        0        0        4        0        0        0        0        2        0
                9        0        0        0        0        2       11        0        0        0        5
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_KNN_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_KNN_confusion_matrix.png
 
   >> Decision Tree Classifier (NYC_311)
-  [Timer] DTree train - NYC_311: 0.4026 seconds
+  [Timer] DTree train - NYC_311: 0.4188 seconds
   [NYC_311] Decision Tree Classification Metrics:
     Num test samples:       595
     Correct predictions:    396
@@ -885,6 +945,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.636763
     Recall (weighted):      0.665546
     F1-score (weighted):    0.645550
+    ROC-AUC (macro OvR):        0.846591
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5917     0.6935     0.6386        186
@@ -909,15 +970,17 @@ DATA QUALITY INVESTIGATION: NYC_311
                7        0        0        0        0        0        0       12       11        0        0
                8       14        0        0        7        0        0        0        0        3        0
                9        0        0        0        0        0       11        0        0        0        7
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_DecisionTree_confusion_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_DecisionTree_confusion_matrix.png
 
 ######################################################################
 # SECTION 3+4: Kernel Models - NYC_311
 ######################################################################
   Kernel train: (244, 41), test: (56, 41)
+  Kernel test distribution: {0: 15, 1: 13, 2: 7, 3: 6, 4: 3, 5: 3, 6: 3, 7: 2, 8: 3, 9: 1}
 
   >> Kernel SVM (linear) (NYC_311)
-  [Timer] KernelSVM_linear - NYC_311: 23.8786 seconds
+  [Timer] KernelSVM_linear - NYC_311: 3.4361 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelSVM_linear Classification Metrics:
     Num test samples:       56
     Correct predictions:    41
@@ -929,6 +992,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.663690
     Recall (weighted):      0.732143
     F1-score (weighted):    0.670847
+    ROC-AUC (macro OvR):        0.929976
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5000     0.9333     0.6512         15
@@ -955,7 +1019,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        0        0        0        0        1
 
   >> Kernel Ridge Classifier (linear) (NYC_311)
-  [Timer] KRR_clf_linear - NYC_311: 0.0231 seconds
+  [Timer] KRR_clf_linear - NYC_311: 0.0335 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KRR_clf_linear Classification Metrics:
     Num test samples:       56
     Correct predictions:    40
@@ -967,6 +1032,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.641317
     Recall (weighted):      0.714286
     F1-score (weighted):    0.662930
+    ROC-AUC (macro OvR):        0.902710
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.6087     0.9333     0.7368         15
@@ -993,7 +1059,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel KNN (linear) (NYC_311)
-  [Timer] KernelKNN_linear - NYC_311: 0.0006 seconds
+  [Timer] KernelKNN_linear - NYC_311: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelKNN_linear Classification Metrics:
     Num test samples:       56
     Correct predictions:    31
@@ -1005,6 +1072,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.531250
     Recall (weighted):      0.553571
     F1-score (weighted):    0.536777
+    ROC-AUC (macro OvR):        0.832826
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5000     0.6667     0.5714         15
@@ -1031,45 +1099,48 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel SVM (poly) (NYC_311)
-  [Timer] KernelSVM_poly - NYC_311: 12.1391 seconds
+  [Timer] KernelSVM_poly - NYC_311: 3.5091 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelSVM_poly Classification Metrics:
     Num test samples:       56
     Correct predictions:    34
     Wrong predictions:      22
     Accuracy:               0.607143
-    Precision (macro):      0.517500
-    Recall (macro):         0.527473
-    F1-score (macro):       0.516667
-    Precision (weighted):   0.639286
+    Precision (macro):      0.538889
+    Recall (macro):         0.518498
+    F1-score (macro):       0.523056
+    Precision (weighted):   0.630952
     Recall (weighted):      0.607143
-    F1-score (weighted):    0.617772
+    F1-score (weighted):    0.611540
+    ROC-AUC (macro OvR):        0.846228
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.6667     0.6667     0.6667         15
-    1                1.0000     0.8462     0.9167         13
-    2                0.6000     0.4286     0.5000          7
-    3                0.1250     0.1667     0.1429          6
-    4                0.7500     1.0000     0.8571          3
+    0                0.5556     0.6667     0.6061         15
+    1                1.0000     0.9231     0.9600         13
+    2                0.7500     0.4286     0.5455          7
+    3                0.0000     0.0000     0.0000          6
+    4                1.0000     1.0000     1.0000          3
     5                0.6667     0.6667     0.6667          3
     6                0.6667     0.6667     0.6667          3
     7                0.5000     0.5000     0.5000          2
-    8                0.2000     0.3333     0.2500          3
+    8                0.2500     0.3333     0.2857          3
     9                0.0000     0.0000     0.0000          1
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3        4        5        6        7        8        9
-               0       10        0        1        3        0        0        0        0        1        0
-               1        0       11        1        0        0        0        1        0        0        0
+               0       10        0        0        4        0        0        0        0        1        0
+               1        0       12        0        0        0        0        1        0        0        0
                2        2        0        3        2        0        0        0        0        0        0
-               3        3        0        0        1        0        0        0        0        2        0
+               3        5        0        0        0        0        0        0        0        1        0
                4        0        0        0        0        3        0        0        0        0        0
                5        0        0        0        0        0        2        0        0        1        0
                6        0        0        0        0        0        0        2        1        0        0
-               7        0        0        0        0        1        0        0        1        0        0
-               8        0        0        0        2        0        0        0        0        1        0
+               7        1        0        0        0        0        0        0        1        0        0
+               8        0        0        1        1        0        0        0        0        1        0
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel Ridge Classifier (poly) (NYC_311)
-  [Timer] KRR_clf_poly - NYC_311: 0.0356 seconds
+  [Timer] KRR_clf_poly - NYC_311: 0.0214 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KRR_clf_poly Classification Metrics:
     Num test samples:       56
     Correct predictions:    20
@@ -1081,6 +1152,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.514750
     Recall (weighted):      0.357143
     F1-score (weighted):    0.399208
+    ROC-AUC (macro OvR):        0.734466
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.6154     0.5333     0.5714         15
@@ -1107,7 +1179,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel KNN (poly) (NYC_311)
-  [Timer] KernelKNN_poly - NYC_311: 0.0012 seconds
+  [Timer] KernelKNN_poly - NYC_311: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelKNN_poly Classification Metrics:
     Num test samples:       56
     Correct predictions:    25
@@ -1119,6 +1192,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.497449
     Recall (weighted):      0.446429
     F1-score (weighted):    0.430316
+    ROC-AUC (macro OvR):        0.761752
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.3667     0.7333     0.4889         15
@@ -1145,7 +1219,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        1        0        0        0        0        0        0        0        0        0
 
   >> Kernel SVM (rbf) (NYC_311)
-  [Timer] KernelSVM_rbf - NYC_311: 5.0364 seconds
+  [Timer] KernelSVM_rbf - NYC_311: 3.4217 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelSVM_rbf Classification Metrics:
     Num test samples:       56
     Correct predictions:    39
@@ -1157,6 +1232,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.662202
     Recall (weighted):      0.696429
     F1-score (weighted):    0.612883
+    ROC-AUC (macro OvR):        0.920146
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5000     1.0000     0.6667         15
@@ -1183,7 +1259,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel Ridge Classifier (rbf) (NYC_311)
-  [Timer] KRR_clf_rbf - NYC_311: 0.0321 seconds
+  [Timer] KRR_clf_rbf - NYC_311: 0.0407 seconds
+    [Memory] kernel matrix measured=4.76 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KRR_clf_rbf Classification Metrics:
     Num test samples:       56
     Correct predictions:    39
@@ -1195,6 +1272,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.625154
     Recall (weighted):      0.696429
     F1-score (weighted):    0.624977
+    ROC-AUC (macro OvR):        0.911854
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5172     1.0000     0.6818         15
@@ -1221,7 +1299,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> Kernel KNN (rbf) (NYC_311)
-  [Timer] KernelKNN_rbf - NYC_311: 0.0009 seconds
+  [Timer] KernelKNN_rbf - NYC_311: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KernelKNN_rbf Classification Metrics:
     Num test samples:       56
     Correct predictions:    31
@@ -1233,6 +1312,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.531250
     Recall (weighted):      0.553571
     F1-score (weighted):    0.536777
+    ROC-AUC (macro OvR):        0.832826
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.5000     0.6667     0.5714         15
@@ -1259,7 +1339,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                9        0        0        0        0        0        1        0        0        0        0
 
   >> KPCA + LogReg (NYC_311)
-  [Timer] KPCA_LogReg - NYC_311: 0.0819 seconds
+  [Timer] KPCA_LogReg - NYC_311: 0.0709 seconds
+    [Memory] kernel matrix measured=0.48 MB, analytic n^2*8=0.48 MB (n_train=244)
   [NYC_311] KPCA+LogReg Classification Metrics:
     Num test samples:       56
     Correct predictions:    26
@@ -1271,6 +1352,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Precision (weighted):   0.321429
     Recall (weighted):      0.464286
     F1-score (weighted):    0.346726
+    ROC-AUC (macro OvR):        0.881861
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
     0                0.3333     1.0000     0.5000         15
@@ -1295,8 +1377,8 @@ DATA QUALITY INVESTIGATION: NYC_311
                7        2        0        0        0        0        0        0        0        0        0
                8        3        0        0        0        0        0        0        0        0        0
                9        1        0        0        0        0        0        0        0        0        0
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\NYC_311_kernel_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_Accuracy_classification_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\NYC_311_kernel_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_Accuracy_classification_comparison.png
 
   Failure analysis using KernelSVM_linear...
 
@@ -1312,7 +1394,7 @@ DATA QUALITY INVESTIGATION: NYC_311
       #8: idx=352, actual=2, predicted=0
       #9: idx=484, actual=2, predicted=0
       #10: idx=585, actual=3, predicted=0
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\NYC_311_KernelSVM_linear_worst_predictions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\NYC_311_KernelSVM_linear_worst_predictions.png
 
   Regression data: X=(55088, 37), target mean=12.9390
   Regression Train: (2400, 37), Test: (600, 37)
@@ -1323,14 +1405,14 @@ DATA QUALITY INVESTIGATION: NYC_311
     Num test samples:   600
     Target mean:        10.970272
     Target std:         21.968740
-    Prediction mean:    12.041819
+    Prediction mean:    12.047382
     Prediction std:     14.744494
-    MSE:                274.170912
-    RMSE:               16.558107
-    MAE:                9.590934
-    R-squared (R2):     0.431918
+    MSE:                274.182864
+    RMSE:               16.558468
+    MAE:                9.591910
+    R-squared (R2):     0.431893
     Target variance:    482.625545
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_LinearReg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_LinearReg_regression_scatter.png
 
   >> KNN Regressor (NYC_311)
   [Timer] KNN_Reg train - NYC_311: 0.0001 seconds
@@ -1338,32 +1420,32 @@ DATA QUALITY INVESTIGATION: NYC_311
     Num test samples:   600
     Target mean:        10.970272
     Target std:         21.968740
-    Prediction mean:    11.803206
-    Prediction std:     17.033162
-    MSE:                290.805776
-    RMSE:               17.053028
-    MAE:                8.978606
-    R-squared (R2):     0.397451
+    Prediction mean:    11.801493
+    Prediction std:     17.033974
+    MSE:                290.795406
+    RMSE:               17.052724
+    MAE:                8.976892
+    R-squared (R2):     0.397472
     Target variance:    482.625545
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_KNN_Reg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_KNN_Reg_regression_scatter.png
 
   >> Decision Tree Regressor (NYC_311)
-  [Timer] DTree_Reg train - NYC_311: 0.4174 seconds
+  [Timer] DTree_Reg train - NYC_311: 0.3901 seconds
   [NYC_311] Decision Tree Regressor Regression Metrics:
     Num test samples:   600
     Target mean:        10.970272
     Target std:         21.968740
-    Prediction mean:    13.135252
-    Prediction std:     19.215825
-    MSE:                371.975891
-    RMSE:               19.286677
-    MAE:                9.902266
-    R-squared (R2):     0.229266
+    Prediction mean:    13.134302
+    Prediction std:     19.252524
+    MSE:                371.033909
+    RMSE:               19.262241
+    MAE:                9.854768
+    R-squared (R2):     0.231218
     Target variance:    482.625545
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_DTree_Reg_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_DTree_Reg_regression_scatter.png
 
   >> Kernel Ridge Regression (linear) (NYC_311)
-  [Timer] KRR_reg_linear - NYC_311: 0.0027 seconds
+  [Timer] KRR_reg_linear - NYC_311: 0.0028 seconds
   [NYC_311] KRR_reg_linear Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1375,10 +1457,10 @@ DATA QUALITY INVESTIGATION: NYC_311
     MAE:                15.893787
     R-squared (R2):     -0.096108
     Target variance:    368.471000
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\NYC_311_KRR_reg_linear_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\NYC_311_KRR_reg_linear_regression_scatter.png
 
   >> Kernel KNN Regressor (linear) (NYC_311)
-  [Timer] KernelKNN_reg_linear - NYC_311: 0.0021 seconds
+  [Timer] KernelKNN_reg_linear - NYC_311: 0.0001 seconds
   [NYC_311] KernelKNN_reg_linear Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1392,7 +1474,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Target variance:    368.471000
 
   >> Kernel Ridge Regression (poly) (NYC_311)
-  [Timer] KRR_reg_poly - NYC_311: 0.0025 seconds
+  [Timer] KRR_reg_poly - NYC_311: 0.0037 seconds
   [NYC_311] KRR_reg_poly Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1404,10 +1486,10 @@ DATA QUALITY INVESTIGATION: NYC_311
     MAE:                13.132747
     R-squared (R2):     -0.561686
     Target variance:    368.471000
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\NYC_311_KRR_reg_poly_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\NYC_311_KRR_reg_poly_regression_scatter.png
 
   >> Kernel KNN Regressor (poly) (NYC_311)
-  [Timer] KernelKNN_reg_poly - NYC_311: 0.0030 seconds
+  [Timer] KernelKNN_reg_poly - NYC_311: 0.0002 seconds
   [NYC_311] KernelKNN_reg_poly Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1421,7 +1503,7 @@ DATA QUALITY INVESTIGATION: NYC_311
     Target variance:    368.471000
 
   >> Kernel Ridge Regression (rbf) (NYC_311)
-  [Timer] KRR_reg_rbf - NYC_311: 0.0017 seconds
+  [Timer] KRR_reg_rbf - NYC_311: 0.0021 seconds
   [NYC_311] KRR_reg_rbf Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1433,10 +1515,10 @@ DATA QUALITY INVESTIGATION: NYC_311
     MAE:                8.498835
     R-squared (R2):     0.338580
     Target variance:    368.471000
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\NYC_311_KRR_reg_rbf_regression_scatter.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\NYC_311_KRR_reg_rbf_regression_scatter.png
 
   >> Kernel KNN Regressor (rbf) (NYC_311)
-  [Timer] KernelKNN_reg_rbf - NYC_311: 0.0010 seconds
+  [Timer] KernelKNN_reg_rbf - NYC_311: 0.0001 seconds
   [NYC_311] KernelKNN_reg_rbf Regression Metrics:
     Num test samples:   60
     Target mean:        7.191894
@@ -1448,21 +1530,21 @@ DATA QUALITY INVESTIGATION: NYC_311
     MAE:                8.026307
     R-squared (R2):     0.208165
     Target variance:    368.471000
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\NYC_311_R_squared_regression_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\NYC_311_R_squared_regression_comparison.png
 
   --- Failure Analysis: LinearReg on NYC_311 ---
     10 worst prediction indices: [430, 116, 195, 449, 13, 121, 575, 250, 424, 118]
-      #1: idx=430, actual=118.6578, predicted=22.4125, error=96.2452
-      #2: idx=116, actual=125.9033, predicted=36.9408, error=88.9625
-      #3: idx=195, actual=122.1289, predicted=34.4477, error=87.6812
-      #4: idx=449, actual=122.0322, predicted=35.1704, error=86.8618
-      #5: idx=13, actual=115.5197, predicted=36.7451, error=78.7746
-      #6: idx=121, actual=101.3167, predicted=25.4190, error=75.8977
-      #7: idx=575, actual=124.2936, predicted=58.5609, error=65.7327
-      #8: idx=250, actual=91.7667, predicted=27.6368, error=64.1299
-      #9: idx=424, actual=120.5225, predicted=57.7461, error=62.7764
-      #10: idx=118, actual=117.1539, predicted=57.0624, error=60.0915
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\NYC_311_LinearReg_worst_predictions.png
+      #1: idx=430, actual=118.6578, predicted=22.4181, error=96.2397
+      #2: idx=116, actual=125.9033, predicted=36.9464, error=88.9570
+      #3: idx=195, actual=122.1289, predicted=34.4532, error=87.6756
+      #4: idx=449, actual=122.0322, predicted=35.1760, error=86.8562
+      #5: idx=13, actual=115.5197, predicted=36.7507, error=78.7690
+      #6: idx=121, actual=101.3167, predicted=25.4245, error=75.8921
+      #7: idx=575, actual=124.2936, predicted=58.5665, error=65.7271
+      #8: idx=250, actual=91.7667, predicted=27.6423, error=64.1243
+      #9: idx=424, actual=120.5225, predicted=57.7517, error=62.7708
+      #10: idx=118, actual=117.1539, predicted=57.0679, error=60.0860
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\NYC_311_LinearReg_worst_predictions.png
 
 **********************************************************************
 * PROCESSING DATASET: IBM_HR
@@ -1478,15 +1560,17 @@ DATA QUALITY INVESTIGATION: IBM_HR
 
   --- Missing Data Analysis: IBM_HR ---
     Total cells: 51450, Total missing: 0 (0.00%)
+    NOTE: classification below is heuristic. MAR vs MNAR is not
+          identifiable from observed data; treat as indicative.
 
   --- Outlier Analysis: IBM_HR ---
-    Running Isolation Forest (n_trees=100, max_samples=256)...
-    Isolation Forest total anomalies (multivariate): 646/1470
+    Running Isolation Forest (n_trees=100, max_samples=256, contamination=5%)...
+    Isolation Forest anomalies (multivariate): 74/1470 (score threshold 0.5494)
+    Score distribution: min=0.4353, median=0.4960, max=0.6045
     Age: Z-score=0, IQR=0, IsoForest=75 (n=1470)
     DailyRate: Z-score=0, IQR=0, IsoForest=74 (n=1470)
     DistanceFromHome: Z-score=0, IQR=0, IsoForest=87 (n=1470)
     Education: Z-score=0, IQR=0, IsoForest=218 (n=1470)
-    EmployeeCount: Z-score=0, IQR=0, IsoForest=1470 (n=1470)
     EmployeeNumber: Z-score=0, IQR=0, IsoForest=74 (n=1470)
     EnvironmentSatisfaction: Z-score=0, IQR=0, IsoForest=284 (n=1470)
     HourlyRate: Z-score=0, IQR=0, IsoForest=85 (n=1470)
@@ -1497,341 +1581,369 @@ DATA QUALITY INVESTIGATION: IBM_HR
     MonthlyRate: Z-score=0, IQR=0, IsoForest=74 (n=1470)
     NumCompaniesWorked: Z-score=0, IQR=52, IsoForest=101 (n=1470)
     PercentSalaryHike: Z-score=0, IQR=0, IsoForest=115 (n=1470)
-    Analyzed 15 numeric columns, found outliers in 15
+    Analyzed 15 numeric columns, found outliers in 14
 
   --- Feature Quality Analysis: IBM_HR ---
-    Near-constant features: ['EmployeeCount', 'StandardHours']
-    Highly correlated pairs (r > 0.90): 1
-      JobLevel <-> MonthlyIncome: r=0.950
+    No near-constant features found.
+    No highly correlated pairs found (r > 0.90).
+    No linear target leakage detected (|r| > 0.95).
+    (Correlation cannot detect ratio/product reconstructions; see loader guards.)
 
   --- Label Quality Analysis: IBM_HR (target: Attrition) ---
-    Class distribution: {'No': np.int64(1233), 'Yes': np.int64(237)}
+    Class distribution: {'No': 1233, 'Yes': 237}
     Imbalance ratio (max/min): 5.20
     Potential bias: temporal/geographic distribution should be examined in report
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\IBM_HR_outlier_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\IBM_HR_feature_distributions.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\IBM_HR_correlation_matrix.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\IBM_HR_outlier_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\IBM_HR_feature_distributions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\IBM_HR_correlation_matrix.png
 
 ######################################################################
 # SECTION 3: Non-Kernel Models - IBM_HR
 ######################################################################
 
   Classification data: X=(1470, 23), classes=2
-  Applying SMOTE oversampling for class imbalance...
-  After SMOTE: (2466, 23), distribution={np.int32(0): np.int64(1233), np.int32(1): np.int64(1233)}
-  Train: (1974, 23), Test: (492, 23)
+  Train: (1177, 23), Test: (293, 23) (split before resampling)
+  Applying SMOTE oversampling to the TRAINING fold only...
+  After SMOTE: train=(1974, 23), distribution={0: 987, 1: 987}
+  Test fold left at natural prevalence: distribution={0: 246, 1: 47}
 
   >> Logistic Regression (IBM_HR)
-  [Timer] LogReg train - IBM_HR: 0.0134 seconds
+  [Timer] LogReg train - IBM_HR: 0.0115 seconds
   [IBM_HR] Logistic Regression Classification Metrics:
-    Num test samples:       492
-    Correct predictions:    353
-    Wrong predictions:      139
-    Accuracy:               0.717480
-    Precision (macro):      0.719076
-    Recall (macro):         0.717480
-    F1-score (macro):       0.716964
-    Precision (weighted):   0.719076
-    Recall (weighted):      0.717480
-    F1-score (weighted):    0.716964
+    Num test samples:       293
+    Correct predictions:    208
+    Wrong predictions:      85
+    Accuracy:               0.709898
+    Precision (macro):      0.641527
+    Recall (macro):         0.749784
+    F1-score (macro):       0.636025
+    Precision (weighted):   0.850846
+    Recall (weighted):      0.709898
+    F1-score (weighted):    0.747394
+    ROC-AUC (binary):        0.808684
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.7378     0.6748     0.7049        246
-    1                0.7004     0.7602     0.7290        246
+    0                0.9497     0.6911     0.8000        246
+    1                0.3333     0.8085     0.4720         47
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0      166       80
-               1       59      187
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\IBM_HR_LogisticReg_confusion_matrix.png
+               0      170       76
+               1        9       38
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\IBM_HR_LogisticReg_confusion_matrix.png
 
   >> KNN Classifier (IBM_HR)
   [Timer] KNN train - IBM_HR: 0.0001 seconds
   [IBM_HR] KNN Classification Metrics:
-    Num test samples:       492
-    Correct predictions:    367
-    Wrong predictions:      125
-    Accuracy:               0.745935
-    Precision (macro):      0.814711
-    Recall (macro):         0.745935
-    F1-score (macro):       0.731252
-    Precision (weighted):   0.814711
-    Recall (weighted):      0.745935
-    F1-score (weighted):    0.731252
+    Num test samples:       293
+    Correct predictions:    164
+    Wrong predictions:      129
+    Accuracy:               0.559727
+    Precision (macro):      0.540159
+    Recall (macro):         0.574295
+    F1-score (macro):       0.490503
+    Precision (weighted):   0.769220
+    Recall (weighted):      0.559727
+    F1-score (weighted):    0.618054
+    ROC-AUC (binary):        0.599377
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9618     0.5122     0.6684        246
-    1                0.6676     0.9797     0.7941        246
+    0                0.8774     0.5528     0.6783        246
+    1                0.2029     0.5957     0.3027         47
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0      126      120
-               1        5      241
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\IBM_HR_KNN_confusion_matrix.png
+               0      136      110
+               1       19       28
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\IBM_HR_KNN_confusion_matrix.png
 
   >> Decision Tree Classifier (IBM_HR)
-  [Timer] DTree train - IBM_HR: 0.9940 seconds
+  [Timer] DTree train - IBM_HR: 0.9935 seconds
   [IBM_HR] Decision Tree Classification Metrics:
-    Num test samples:       492
-    Correct predictions:    407
-    Wrong predictions:      85
-    Accuracy:               0.827236
-    Precision (macro):      0.827674
-    Recall (macro):         0.827236
-    F1-score (macro):       0.827178
-    Precision (weighted):   0.827674
-    Recall (weighted):      0.827236
-    F1-score (weighted):    0.827178
+    Num test samples:       293
+    Correct predictions:    229
+    Wrong predictions:      64
+    Accuracy:               0.781570
+    Precision (macro):      0.583163
+    Recall (macro):         0.577322
+    F1-score (macro):       0.579928
+    Precision (weighted):   0.773902
+    Recall (weighted):      0.781570
+    F1-score (weighted):    0.777597
+    ROC-AUC (binary):        0.617973
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8157     0.8455     0.8303        246
-    1                0.8397     0.8089     0.8240        246
+    0                0.8640     0.8780     0.8710        246
+    1                0.3023     0.2766     0.2889         47
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0      208       38
-               1       47      199
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\IBM_HR_DecisionTree_confusion_matrix.png
+               0      216       30
+               1       34       13
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\IBM_HR_DecisionTree_confusion_matrix.png
 
 ######################################################################
 # SECTION 3+4: Kernel Models - IBM_HR
 ######################################################################
-  Kernel train: (241, 23), test: (59, 23)
+  Applying SMOTE to the kernel TRAINING fold only...
+  After SMOTE: kernel train=(418, 23), distribution={0: 209, 1: 209}
+  Kernel train: (418, 23), test: (59, 23)
+  Kernel test distribution: {0: 52, 1: 7}
 
   >> Kernel SVM (linear) (IBM_HR)
-  [Timer] KernelSVM_linear - IBM_HR: 12.7856 seconds
+  [Timer] KernelSVM_linear - IBM_HR: 0.8940 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
   [IBM_HR] KernelSVM_linear Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    45
-    Wrong predictions:      14
-    Accuracy:               0.762712
-    Precision (macro):      0.774155
-    Recall (macro):         0.760920
-    F1-score (macro):       0.759324
-    Precision (weighted):   0.773274
-    Recall (weighted):      0.762712
-    F1-score (weighted):    0.759808
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.8261     0.6552     0.7308         29
-    1                0.7222     0.8667     0.7879         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0       19       10
-               1        4       26
-
-  >> Kernel Ridge Classifier (linear) (IBM_HR)
-  [Timer] KRR_clf_linear - IBM_HR: 0.0029 seconds
-  [IBM_HR] KRR_clf_linear Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    30
-    Wrong predictions:      29
-    Accuracy:               0.508475
-    Precision (macro):      0.750000
-    Recall (macro):         0.516667
-    F1-score (macro):       0.365591
-    Precision (weighted):   0.754237
-    Recall (weighted):      0.508475
-    F1-score (weighted):    0.360488
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.5000     1.0000     0.6667         29
-    1                1.0000     0.0333     0.0645         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0       29        0
-               1       29        1
-
-  >> Kernel KNN (linear) (IBM_HR)
-  [Timer] KernelKNN_linear - IBM_HR: 0.0009 seconds
-  [IBM_HR] KernelKNN_linear Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    39
-    Wrong predictions:      20
-    Accuracy:               0.661017
-    Precision (macro):      0.727425
-    Recall (macro):         0.656322
-    F1-score (macro):       0.630326
-    Precision (weighted):   0.725412
-    Recall (weighted):      0.661017
-    F1-score (weighted):    0.632131
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.8462     0.3793     0.5238         29
-    1                0.6087     0.9333     0.7368         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0       11       18
-               1        2       28
-
-  >> Kernel SVM (poly) (IBM_HR)
-  [Timer] KernelSVM_poly - IBM_HR: 0.3609 seconds
-  [IBM_HR] KernelSVM_poly Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    43
-    Wrong predictions:      16
-    Accuracy:               0.728814
-    Precision (macro):      0.746867
-    Recall (macro):         0.726437
-    F1-score (macro):       0.722353
-    Precision (weighted):   0.745805
-    Recall (weighted):      0.728814
-    F1-score (weighted):    0.723071
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.8095     0.5862     0.6800         29
-    1                0.6842     0.8667     0.7647         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0       17       12
-               1        4       26
-
-  >> Kernel Ridge Classifier (poly) (IBM_HR)
-  [Timer] KRR_clf_poly - IBM_HR: 0.0029 seconds
-  [IBM_HR] KRR_clf_poly Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    32
-    Wrong predictions:      27
-    Accuracy:               0.542373
-    Precision (macro):      0.543403
-    Recall (macro):         0.543103
-    F1-score (macro):       0.541846
-    Precision (weighted):   0.543609
-    Recall (weighted):      0.542373
-    F1-score (weighted):    0.541583
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.5312     0.5862     0.5574         29
-    1                0.5556     0.5000     0.5263         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0       17       12
-               1       15       15
-
-  >> Kernel KNN (poly) (IBM_HR)
-  [Timer] KernelKNN_poly - IBM_HR: 0.0012 seconds
-  [IBM_HR] KernelKNN_poly Classification Metrics:
-    Num test samples:       59
-    Correct predictions:    31
-    Wrong predictions:      28
-    Accuracy:               0.525424
-    Precision (macro):      0.758621
-    Recall (macro):         0.517241
-    F1-score (macro):       0.374242
-    Precision (weighted):   0.754530
-    Recall (weighted):      0.525424
-    F1-score (weighted):    0.379456
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                1.0000     0.0345     0.0667         29
-    1                0.5172     1.0000     0.6818         30
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1
-               0        1       28
-               1        0       30
-
-  >> Kernel SVM (rbf) (IBM_HR)
-  [Timer] KernelSVM_rbf - IBM_HR: 0.2679 seconds
-  [IBM_HR] KernelSVM_rbf Classification Metrics:
     Num test samples:       59
     Correct predictions:    48
     Wrong predictions:      11
     Accuracy:               0.813559
-    Precision (macro):      0.823214
-    Recall (macro):         0.812069
-    F1-score (macro):       0.811611
-    Precision (weighted):   0.822337
+    Precision (macro):      0.656349
+    Recall (macro):         0.770604
+    F1-score (macro):       0.681394
+    Precision (weighted):   0.884557
     Recall (weighted):      0.813559
-    F1-score (weighted):    0.811936
+    F1-score (weighted):    0.837906
+    ROC-AUC (binary):        0.799451
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8750     0.7241     0.7925         29
-    1                0.7714     0.9000     0.8308         30
+    0                0.9556     0.8269     0.8866         52
+    1                0.3571     0.7143     0.4762          7
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0       21        8
-               1        3       27
+               0       43        9
+               1        2        5
+
+  >> Kernel Ridge Classifier (linear) (IBM_HR)
+  [Timer] KRR_clf_linear - IBM_HR: 0.0088 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KRR_clf_linear Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    53
+    Wrong predictions:      6
+    Accuracy:               0.898305
+    Precision (macro):      0.948276
+    Recall (macro):         0.571429
+    F1-score (macro):       0.597727
+    Precision (weighted):   0.908825
+    Recall (weighted):      0.898305
+    F1-score (weighted):    0.862943
+    ROC-AUC (binary):        0.760989
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.8966     1.0000     0.9455         52
+    1                1.0000     0.1429     0.2500          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       52        0
+               1        6        1
+
+  >> Kernel KNN (linear) (IBM_HR)
+  [Timer] KernelKNN_linear - IBM_HR: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KernelKNN_linear Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    41
+    Wrong predictions:      18
+    Accuracy:               0.694915
+    Precision (macro):      0.567763
+    Recall (macro):         0.641484
+    F1-score (macro):       0.556020
+    Precision (weighted):   0.840232
+    Recall (weighted):      0.694915
+    F1-score (weighted):    0.745423
+    ROC-AUC (binary):        0.726648
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.9250     0.7115     0.8043         52
+    1                0.2105     0.5714     0.3077          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       37       15
+               1        3        4
+
+  >> Kernel SVM (poly) (IBM_HR)
+  [Timer] KernelSVM_poly - IBM_HR: 0.3027 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KernelSVM_poly Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    49
+    Wrong predictions:      10
+    Accuracy:               0.830508
+    Precision (macro):      0.594780
+    Recall (macro):         0.594780
+    F1-score (macro):       0.594780
+    Precision (weighted):   0.830508
+    Recall (weighted):      0.830508
+    F1-score (weighted):    0.830508
+    ROC-AUC (binary):        0.656593
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.9038     0.9038     0.9038         52
+    1                0.2857     0.2857     0.2857          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       47        5
+               1        5        2
+
+  >> Kernel Ridge Classifier (poly) (IBM_HR)
+  [Timer] KRR_clf_poly - IBM_HR: 0.0095 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KRR_clf_poly Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    49
+    Wrong predictions:      10
+    Accuracy:               0.830508
+    Precision (macro):      0.626667
+    Recall (macro):         0.656593
+    F1-score (macro):       0.638480
+    Precision (weighted):   0.850395
+    Recall (weighted):      0.830508
+    F1-score (weighted):    0.839440
+    ROC-AUC (binary):        0.631868
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.9200     0.8846     0.9020         52
+    1                0.3333     0.4286     0.3750          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       46        6
+               1        4        3
+
+  >> Kernel KNN (poly) (IBM_HR)
+  [Timer] KernelKNN_poly - IBM_HR: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KernelKNN_poly Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    21
+    Wrong predictions:      38
+    Accuracy:               0.355932
+    Precision (macro):      0.538517
+    Recall (macro):         0.572802
+    F1-score (macro):       0.340588
+    Precision (weighted):   0.842826
+    Recall (weighted):      0.355932
+    F1-score (weighted):    0.417308
+    ROC-AUC (binary):        0.692308
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.9375     0.2885     0.4412         52
+    1                0.1395     0.8571     0.2400          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       15       37
+               1        1        6
+
+  >> Kernel SVM (rbf) (IBM_HR)
+  [Timer] KernelSVM_rbf - IBM_HR: 0.6874 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
+  [IBM_HR] KernelSVM_rbf Classification Metrics:
+    Num test samples:       59
+    Correct predictions:    51
+    Wrong predictions:      8
+    Accuracy:               0.864407
+    Precision (macro):      0.692222
+    Recall (macro):         0.737637
+    F1-score (macro):       0.710784
+    Precision (weighted):   0.881205
+    Recall (weighted):      0.864407
+    F1-score (weighted):    0.871552
+    ROC-AUC (binary):        0.750000
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.9400     0.9038     0.9216         52
+    1                0.4444     0.5714     0.5000          7
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1
+               0       47        5
+               1        3        4
 
   >> Kernel Ridge Classifier (rbf) (IBM_HR)
-  [Timer] KRR_clf_rbf - IBM_HR: 0.0037 seconds
+  [Timer] KRR_clf_rbf - IBM_HR: 0.0134 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
   [IBM_HR] KRR_clf_rbf Classification Metrics:
     Num test samples:       59
     Correct predictions:    51
     Wrong predictions:      8
     Accuracy:               0.864407
-    Precision (macro):      0.871765
-    Recall (macro):         0.863218
-    F1-score (macro):       0.863426
-    Precision (weighted):   0.870947
+    Precision (macro):      0.675824
+    Recall (macro):         0.675824
+    F1-score (macro):       0.675824
+    Precision (weighted):   0.864407
     Recall (weighted):      0.864407
-    F1-score (weighted):    0.863622
+    F1-score (weighted):    0.864407
+    ROC-AUC (binary):        0.750000
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9200     0.7931     0.8519         29
-    1                0.8235     0.9333     0.8750         30
+    0                0.9231     0.9231     0.9231         52
+    1                0.4286     0.4286     0.4286          7
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0       23        6
-               1        2       28
+               0       48        4
+               1        4        3
 
   >> Kernel KNN (rbf) (IBM_HR)
-  [Timer] KernelKNN_rbf - IBM_HR: 0.0010 seconds
+  [Timer] KernelKNN_rbf - IBM_HR: 0.0001 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=1.40 MB (n_train=418)
   [IBM_HR] KernelKNN_rbf Classification Metrics:
     Num test samples:       59
-    Correct predictions:    39
-    Wrong predictions:      20
-    Accuracy:               0.661017
-    Precision (macro):      0.727425
-    Recall (macro):         0.656322
-    F1-score (macro):       0.630326
-    Precision (weighted):   0.725412
-    Recall (weighted):      0.661017
-    F1-score (weighted):    0.632131
+    Correct predictions:    41
+    Wrong predictions:      18
+    Accuracy:               0.694915
+    Precision (macro):      0.567763
+    Recall (macro):         0.641484
+    F1-score (macro):       0.556020
+    Precision (weighted):   0.840232
+    Recall (weighted):      0.694915
+    F1-score (weighted):    0.745423
+    ROC-AUC (binary):        0.726648
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8462     0.3793     0.5238         29
-    1                0.6087     0.9333     0.7368         30
+    0                0.9250     0.7115     0.8043         52
+    1                0.2105     0.5714     0.3077          7
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0       11       18
-               1        2       28
+               0       37       15
+               1        3        4
 
   >> KPCA + LogReg (IBM_HR)
-  [Timer] KPCA_LogReg - IBM_HR: 0.0353 seconds
+  [Timer] KPCA_LogReg - IBM_HR: 0.0756 seconds
+    [Memory] kernel matrix measured=1.40 MB, analytic n^2*8=1.40 MB (n_train=418)
   [IBM_HR] KPCA+LogReg Classification Metrics:
     Num test samples:       59
-    Correct predictions:    43
-    Wrong predictions:      16
-    Accuracy:               0.728814
-    Precision (macro):      0.758553
-    Recall (macro):         0.725862
-    F1-score (macro):       0.719048
-    Precision (weighted):   0.757136
-    Recall (weighted):      0.728814
-    F1-score (weighted):    0.719935
+    Correct predictions:    50
+    Wrong predictions:      9
+    Accuracy:               0.847458
+    Precision (macro):      0.669388
+    Recall (macro):         0.728022
+    F1-score (macro):       0.690740
+    Precision (weighted):   0.874853
+    Recall (weighted):      0.847458
+    F1-score (weighted):    0.858652
+    ROC-AUC (binary):        0.739011
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8421     0.5517     0.6667         29
-    1                0.6750     0.9000     0.7714         30
+    0                0.9388     0.8846     0.9109         52
+    1                0.4000     0.5714     0.4706          7
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1
-               0       16       13
-               1        3       27
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\IBM_HR_kernel_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\IBM_HR_Accuracy_classification_comparison.png
+               0       46        6
+               1        3        4
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\IBM_HR_kernel_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\IBM_HR_Accuracy_classification_comparison.png
 
-  Failure analysis using KRR_clf_rbf...
+  Failure analysis using KRR_clf_linear...
 
-  --- Failure Analysis: KRR_clf_rbf on IBM_HR ---
-    10 worst prediction indices: [325, 444, 350, 324, 307, 440, 306, 482, 374, 373]
-      #1: idx=325, actual=0, predicted=1
-      #2: idx=444, actual=1, predicted=0
-      #3: idx=350, actual=0, predicted=1
-      #4: idx=324, actual=1, predicted=0
-      #5: idx=307, actual=0, predicted=1
-      #6: idx=440, actual=1, predicted=0
-      #7: idx=306, actual=1, predicted=0
-      #8: idx=482, actual=1, predicted=0
-      #9: idx=374, actual=0, predicted=1
-      #10: idx=373, actual=0, predicted=1
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\IBM_HR_KRR_clf_rbf_worst_predictions.png
+  --- Failure Analysis: KRR_clf_linear on IBM_HR ---
+    10 worst prediction indices: [4, 20, 21, 29, 35, 260, 264, 267, 269, 41]
+      #1: idx=4, actual=1, predicted=0
+      #2: idx=20, actual=1, predicted=0
+      #3: idx=21, actual=1, predicted=0
+      #4: idx=29, actual=1, predicted=0
+      #5: idx=35, actual=1, predicted=0
+      #6: idx=260, actual=0, predicted=1
+      #7: idx=264, actual=0, predicted=1
+      #8: idx=267, actual=0, predicted=1
+      #9: idx=269, actual=1, predicted=0
+      #10: idx=41, actual=0, predicted=1
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\IBM_HR_KRR_clf_linear_worst_predictions.png
 
 **********************************************************************
 * PROCESSING DATASET: OnlineRetail
@@ -1847,554 +1959,597 @@ DATA QUALITY INVESTIGATION: OnlineRetail
 
   --- Missing Data Analysis: OnlineRetail ---
     Total cells: 1600000, Total missing: 58804 (3.68%)
+    NOTE: classification below is heuristic. MAR vs MNAR is not
+          identifiable from observed data; treat as indicative.
     CustomerID: 58014 missing (29.0%), Type: MCAR
     Description: 790 missing (0.4%), Type: MCAR
 
   --- Outlier Analysis: OnlineRetail ---
-    Running Isolation Forest (n_trees=100, max_samples=256)...
-    Isolation Forest total anomalies (multivariate): 521/5000
+    Running Isolation Forest (n_trees=100, max_samples=256, contamination=5%)...
+    Isolation Forest anomalies (multivariate): 250/5000 (score threshold 0.5550)
+    Score distribution: min=0.3677, median=0.4188, max=0.7522
     Quantity: Z-score=115, IQR=20724, IsoForest=265 (n=200000)
     UnitPrice: Z-score=142, IQR=13734, IsoForest=260 (n=200000)
     CustomerID: Z-score=0, IQR=0, IsoForest=251 (n=141986)
     Analyzed 3 numeric columns, found outliers in 3
 
   --- Feature Quality Analysis: OnlineRetail ---
-    No near-constant features found.
-    No highly correlated pairs found (r > 0.90).
+    Near-constant features: ['country_diversity']
+    Highly correlated pairs (r > 0.90): 10
+      monetary <-> total_quantity: r=0.935
+      avg_order_value <-> total_quantity: r=0.901
+      avg_order_value <-> avg_quantity_per_order: r=0.999
+      avg_order_value <-> max_single_purchase: r=0.996
+      total_quantity <-> avg_quantity_per_order: r=0.902
+    Columns correlating |r| > 0.95 with a target:
+      is_churned vs log_future_monetary: r=0.9831  [excluded from X (ok)]
+      rfm_score vs segment: r=0.9843  [excluded from X (ok)]
+    None reach the model: all are intermediate columns correctly excluded from the feature matrix.
+    (Correlation cannot detect ratio/product reconstructions; see loader guards.)
 
-  --- Label Quality Analysis: OnlineRetail (target: CustomerID) ---
-    Distribution: mean=15276.16, std=1724.72, skew=0.04
+  --- Label Quality Analysis: OnlineRetail (target: segment) ---
+    Class distribution: {'3': 1300, '2': 351, '1': 251, '0': 210}
+    Imbalance ratio (max/min): 6.19
     Potential bias: temporal/geographic distribution should be examined in report
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\OnlineRetail_missing_data.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section2\OnlineRetail_outlier_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\OnlineRetail_feature_distributions.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section1\OnlineRetail_correlation_matrix.png
+
+  --- Label Quality Analysis: OnlineRetail (target: log_future_monetary) ---
+    Distribution: mean=2.49, std=3.02, skew=0.45
+    Range: [0.00, 8.36], n_unique=867
+    Potential bias: temporal/geographic distribution should be examined in report
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\OnlineRetail_missing_data.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section2\OnlineRetail_outlier_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\OnlineRetail_feature_distributions.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section1\OnlineRetail_correlation_matrix.png
 
 ######################################################################
 # SECTION 3: Non-Kernel Models - OnlineRetail
 ######################################################################
 
-  Classification data: X=(2631, 13), classes=4
-  Train: (2106, 13), Test: (525, 13)
+  Classification data: X=(2112, 14), classes=4
+  Train: (1690, 14), Test: (422, 14) (split before resampling)
 
   >> Logistic Regression (OnlineRetail)
-  [Timer] LogReg train - OnlineRetail: 0.0500 seconds
+  [Timer] LogReg train - OnlineRetail: 0.0554 seconds
   [OnlineRetail] Logistic Regression Classification Metrics:
-    Num test samples:       525
-    Correct predictions:    365
-    Wrong predictions:      160
-    Accuracy:               0.695238
-    Precision (macro):      0.539987
-    Recall (macro):         0.574596
-    F1-score (macro):       0.543995
-    Precision (weighted):   0.635979
-    Recall (weighted):      0.695238
-    F1-score (weighted):    0.648929
+    Num test samples:       422
+    Correct predictions:    278
+    Wrong predictions:      144
+    Accuracy:               0.658768
+    Precision (macro):      0.341102
+    Recall (macro):         0.377106
+    F1-score (macro):       0.347306
+    Precision (weighted):   0.474020
+    Recall (weighted):      0.658768
+    F1-score (weighted):    0.544551
+    ROC-AUC (macro OvR):        0.708419
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8471     0.9236     0.8837        144
-    1                0.7113     0.4792     0.5726        144
-    2                0.6015     0.8956     0.7196        182
-    3                0.0000     0.0000     0.0000         55
+    0                0.7097     0.5238     0.6027         42
+    1                0.0000     0.0000     0.0000         50
+    2                0.0000     0.0000     0.0000         70
+    3                0.6547     0.9846     0.7865        260
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0      133       11        0        0
-               1       22       69       53        0
-               2        2       17      163        0
-               3        0        0       55        0
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_LogisticReg_confusion_matrix.png
+               0       22        0        0       20
+               1        4        0        0       46
+               2        1        0        0       69
+               3        4        0        0      256
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_LogisticReg_confusion_matrix.png
 
   >> KNN Classifier (OnlineRetail)
-  [Timer] KNN train - OnlineRetail: 0.0000 seconds
+  [Timer] KNN train - OnlineRetail: 0.0004 seconds
   [OnlineRetail] KNN Classification Metrics:
-    Num test samples:       525
-    Correct predictions:    372
-    Wrong predictions:      153
-    Accuracy:               0.708571
-    Precision (macro):      0.693733
-    Recall (macro):         0.668128
-    F1-score (macro):       0.677596
-    Precision (weighted):   0.705612
-    Recall (weighted):      0.708571
-    F1-score (weighted):    0.704910
+    Num test samples:       422
+    Correct predictions:    243
+    Wrong predictions:      179
+    Accuracy:               0.575829
+    Precision (macro):      0.397478
+    Recall (macro):         0.371209
+    F1-score (macro):       0.377217
+    Precision (weighted):   0.522845
+    Recall (weighted):      0.575829
+    F1-score (weighted):    0.542660
+    ROC-AUC (macro OvR):        0.639326
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8414     0.8472     0.8443        144
-    1                0.6316     0.5833     0.6065        144
-    2                0.6829     0.7692     0.7235        182
-    3                0.6190     0.4727     0.5361         55
+    0                0.5143     0.4286     0.4675         42
+    1                0.2069     0.1200     0.1519         50
+    2                0.1957     0.1286     0.1552         70
+    3                0.6731     0.8077     0.7343        260
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0      122       22        0        0
-               1       21       84       38        1
-               2        0       27      140       15
-               3        2        0       27       26
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_KNN_confusion_matrix.png
+               0       18        6        3       15
+               1        5        6        8       31
+               2        4        1        9       56
+               3        8       16       26      210
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_KNN_confusion_matrix.png
 
   >> Decision Tree Classifier (OnlineRetail)
-  [Timer] DTree train - OnlineRetail: 0.8071 seconds
+  [Timer] DTree train - OnlineRetail: 0.9566 seconds
   [OnlineRetail] Decision Tree Classification Metrics:
-    Num test samples:       525
-    Correct predictions:    403
-    Wrong predictions:      122
-    Accuracy:               0.767619
-    Precision (macro):      0.745381
-    Recall (macro):         0.748682
-    F1-score (macro):       0.746886
-    Precision (weighted):   0.768990
-    Recall (weighted):      0.767619
-    F1-score (weighted):    0.768217
+    Num test samples:       422
+    Correct predictions:    232
+    Wrong predictions:      190
+    Accuracy:               0.549763
+    Precision (macro):      0.379145
+    Recall (macro):         0.368196
+    F1-score (macro):       0.372636
+    Precision (weighted):   0.535970
+    Recall (weighted):      0.549763
+    F1-score (weighted):    0.542200
+    ROC-AUC (macro OvR):        0.615840
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9085     0.8958     0.9021        144
-    1                0.7305     0.7153     0.7228        144
-    2                0.7391     0.7473     0.7432        182
-    3                0.6034     0.6364     0.6195         55
+    0                0.3889     0.3333     0.3590         42
+    1                0.1707     0.1400     0.1538         50
+    2                0.2500     0.2571     0.2535         70
+    3                0.7070     0.7423     0.7242        260
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0      129       15        0        0
-               1       13      103       28        0
-               2        0       23      136       23
-               3        0        0       20       35
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_DecisionTree_confusion_matrix.png
+               0       14        9        5       14
+               1        8        7       11       24
+               2        5        5       18       42
+               3        9       20       38      193
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_DecisionTree_confusion_matrix.png
 
 ######################################################################
 # SECTION 3+4: Kernel Models - OnlineRetail
 ######################################################################
-  Kernel train: (242, 13), test: (58, 13)
+  Kernel train: (242, 14), test: (58, 14)
+  Kernel test distribution: {0: 5, 1: 8, 2: 11, 3: 34}
 
   >> Kernel SVM (linear) (OnlineRetail)
-  [Timer] KernelSVM_linear - OnlineRetail: 12.2283 seconds
+  [Timer] KernelSVM_linear - OnlineRetail: 1.3893 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KernelSVM_linear Classification Metrics:
     Num test samples:       58
-    Correct predictions:    37
-    Wrong predictions:      21
-    Accuracy:               0.637931
-    Precision (macro):      0.597128
-    Recall (macro):         0.546324
-    F1-score (macro):       0.495238
-    Precision (weighted):   0.681384
-    Recall (weighted):      0.637931
-    F1-score (weighted):    0.566831
+    Correct predictions:    35
+    Wrong predictions:      23
+    Accuracy:               0.603448
+    Precision (macro):      0.270833
+    Recall (macro):         0.470588
+    F1-score (macro):       0.336932
+    Precision (weighted):   0.426724
+    Recall (weighted):      0.603448
+    F1-score (weighted):    0.495930
+    ROC-AUC (macro OvR):        0.671279
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8750     1.0000     0.9333         14
-    1                1.0000     0.2353     0.3810         17
-    2                0.5135     0.9500     0.6667         20
-    3                0.0000     0.0000     0.0000          7
+    0                0.4167     1.0000     0.5882          5
+    1                0.0000     0.0000     0.0000          8
+    2                0.0000     0.0000     0.0000         11
+    3                0.6667     0.8824     0.7595         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       14        0        0        0
-               1        2        4       11        0
-               2        0        0       19        1
-               3        0        0        7        0
+               0        5        0        0        0
+               1        2        0        0        6
+               2        2        0        0        9
+               3        3        1        0       30
 
   >> Kernel Ridge Classifier (linear) (OnlineRetail)
-  [Timer] KRR_clf_linear - OnlineRetail: 0.0114 seconds
+  [Timer] KRR_clf_linear - OnlineRetail: 0.0254 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KRR_clf_linear Classification Metrics:
+    Num test samples:       58
+    Correct predictions:    31
+    Wrong predictions:      27
+    Accuracy:               0.534483
+    Precision (macro):      0.353526
+    Recall (macro):         0.487299
+    F1-score (macro):       0.389246
+    Precision (weighted):   0.529111
+    Recall (weighted):      0.534483
+    F1-score (weighted):    0.519460
+    ROC-AUC (macro OvR):        0.607678
+    --- Per-Class Breakdown ---
+    Class         Precision     Recall         F1    Support
+    0                0.4167     1.0000     0.5882          5
+    1                0.0000     0.0000     0.0000          8
+    2                0.2308     0.2727     0.2500         11
+    3                0.7667     0.6765     0.7188         34
+    --- Confusion Matrix (rows=actual, cols=predicted) ---
+                        0        1        2        3
+               0        5        0        0        0
+               1        3        0        2        3
+               2        2        2        3        4
+               3        2        1        8       23
+
+  >> Kernel KNN (linear) (OnlineRetail)
+  [Timer] KernelKNN_linear - OnlineRetail: 0.0000 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.47 MB (n_train=242)
+  [OnlineRetail] KernelKNN_linear Classification Metrics:
     Num test samples:       58
     Correct predictions:    33
     Wrong predictions:      25
     Accuracy:               0.568966
-    Precision (macro):      0.568987
-    Recall (macro):         0.601050
-    F1-score (macro):       0.564069
-    Precision (weighted):   0.601533
+    Precision (macro):      0.440278
+    Recall (macro):         0.483255
+    F1-score (macro):       0.432359
+    Precision (weighted):   0.550766
     Recall (weighted):      0.568966
-    F1-score (weighted):    0.569816
+    F1-score (weighted):    0.546671
+    ROC-AUC (macro OvR):        0.679486
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.6923     0.6429     0.6667         14
-    1                0.6111     0.6471     0.6286         17
-    2                0.6154     0.4000     0.4848         20
-    3                0.3571     0.7143     0.4762          7
+    0                0.4000     0.8000     0.5333          5
+    1                0.3333     0.1250     0.1818          8
+    2                0.3333     0.2727     0.3000         11
+    3                0.6944     0.7353     0.7143         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0        9        4        1        0
-               1        4       11        2        0
-               2        0        3        8        9
-               3        0        0        2        5
-
-  >> Kernel KNN (linear) (OnlineRetail)
-  [Timer] KernelKNN_linear - OnlineRetail: 0.0007 seconds
-  [OnlineRetail] KernelKNN_linear Classification Metrics:
-    Num test samples:       58
-    Correct predictions:    45
-    Wrong predictions:      13
-    Accuracy:               0.775862
-    Precision (macro):      0.750029
-    Recall (macro):         0.763445
-    F1-score (macro):       0.754732
-    Precision (weighted):   0.769058
-    Recall (weighted):      0.775862
-    F1-score (weighted):    0.769946
-    --- Per-Class Breakdown ---
-    Class         Precision     Recall         F1    Support
-    0                0.9333     1.0000     0.9655         14
-    1                0.7895     0.8824     0.8333         17
-    2                0.7059     0.6000     0.6486         20
-    3                0.5714     0.5714     0.5714          7
-    --- Confusion Matrix (rows=actual, cols=predicted) ---
-                        0        1        2        3
-               0       14        0        0        0
-               1        0       15        2        0
-               2        1        4       12        3
-               3        0        0        3        4
+               0        4        0        0        1
+               1        3        1        1        3
+               2        0        1        3        7
+               3        3        1        5       25
 
   >> Kernel SVM (poly) (OnlineRetail)
-  [Timer] KernelSVM_poly - OnlineRetail: 7288.9004 seconds
+  [Timer] KernelSVM_poly - OnlineRetail: 2.6450 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KernelSVM_poly Classification Metrics:
     Num test samples:       58
-    Correct predictions:    41
-    Wrong predictions:      17
-    Accuracy:               0.706897
-    Precision (macro):      0.696720
-    Recall (macro):         0.695168
-    F1-score (macro):       0.688617
-    Precision (weighted):   0.739403
-    Recall (weighted):      0.706897
-    F1-score (weighted):    0.718779
+    Correct predictions:    31
+    Wrong predictions:      27
+    Accuracy:               0.534483
+    Precision (macro):      0.389484
+    Recall (macro):         0.453175
+    F1-score (macro):       0.398913
+    Precision (weighted):   0.513082
+    Recall (weighted):      0.534483
+    F1-score (weighted):    0.514693
+    ROC-AUC (macro OvR):        0.617479
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9167     0.7857     0.8462         14
-    1                0.8750     0.8235     0.8485         17
-    2                0.6316     0.6000     0.6154         20
-    3                0.3636     0.5714     0.4444          7
+    0                0.4000     0.8000     0.5333          5
+    1                0.2500     0.1250     0.1667          8
+    2                0.2222     0.1818     0.2000         11
+    3                0.6857     0.7059     0.6957         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       11        0        2        1
-               1        0       14        2        1
-               2        1        2       12        5
-               3        0        0        3        4
+               0        4        0        0        1
+               1        1        1        2        4
+               2        1        2        2        6
+               3        4        1        5       24
 
   >> Kernel Ridge Classifier (poly) (OnlineRetail)
-  [Timer] KRR_clf_poly - OnlineRetail: 0.0102 seconds
+  [Timer] KRR_clf_poly - OnlineRetail: 0.0233 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KRR_clf_poly Classification Metrics:
     Num test samples:       58
-    Correct predictions:    32
-    Wrong predictions:      26
-    Accuracy:               0.551724
-    Precision (macro):      0.633394
-    Recall (macro):         0.535399
-    F1-score (macro):       0.509150
-    Precision (weighted):   0.664721
-    Recall (weighted):      0.551724
-    F1-score (weighted):    0.539599
+    Correct predictions:    23
+    Wrong predictions:      35
+    Accuracy:               0.396552
+    Precision (macro):      0.315599
+    Recall (macro):         0.293683
+    F1-score (macro):       0.302333
+    Precision (weighted):   0.460664
+    Recall (weighted):      0.396552
+    F1-score (weighted):    0.424559
+    ROC-AUC (macro OvR):        0.528550
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                1.0000     0.2143     0.3529         14
-    1                0.7059     0.7059     0.7059         17
-    2                0.5200     0.6500     0.5778         20
-    3                0.3077     0.5714     0.4000          7
+    0                0.4000     0.4000     0.4000          5
+    1                0.1250     0.1250     0.1250          8
+    2                0.0588     0.0909     0.0714         11
+    3                0.6786     0.5588     0.6129         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0        3        3        4        4
-               1        0       12        5        0
-               2        0        2       13        5
-               3        0        0        3        4
+               0        2        0        2        1
+               1        1        1        4        2
+               2        2        2        1        6
+               3        0        5       10       19
 
   >> Kernel KNN (poly) (OnlineRetail)
-  [Timer] KernelKNN_poly - OnlineRetail: 0.0013 seconds
+  [Timer] KernelKNN_poly - OnlineRetail: 0.0000 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KernelKNN_poly Classification Metrics:
     Num test samples:       58
-    Correct predictions:    37
-    Wrong predictions:      21
-    Accuracy:               0.637931
-    Precision (macro):      0.636607
-    Recall (macro):         0.643908
-    F1-score (macro):       0.637291
-    Precision (weighted):   0.638793
-    Recall (weighted):      0.637931
-    F1-score (weighted):    0.634576
+    Correct predictions:    31
+    Wrong predictions:      27
+    Accuracy:               0.534483
+    Precision (macro):      0.385417
+    Recall (macro):         0.453175
+    F1-score (macro):       0.405925
+    Precision (weighted):   0.537356
+    Recall (weighted):      0.534483
+    F1-score (weighted):    0.530766
+    ROC-AUC (macro OvR):        0.670595
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.8000     0.8571     0.8276         14
-    1                0.5500     0.6471     0.5946         17
-    2                0.6250     0.5000     0.5556         20
-    3                0.5714     0.5714     0.5714          7
+    0                0.4444     0.8000     0.5714          5
+    1                0.1250     0.1250     0.1250          8
+    2                0.2222     0.1818     0.2000         11
+    3                0.7500     0.7059     0.7273         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       12        2        0        0
-               1        2       11        4        0
-               2        1        6       10        3
-               3        0        1        2        4
+               0        4        0        1        0
+               1        3        1        2        2
+               2        0        3        2        6
+               3        2        4        4       24
 
   >> Kernel SVM (rbf) (OnlineRetail)
-  [Timer] KernelSVM_rbf - OnlineRetail: 2.2535 seconds
+  [Timer] KernelSVM_rbf - OnlineRetail: 1.5396 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KernelSVM_rbf Classification Metrics:
     Num test samples:       58
     Correct predictions:    35
     Wrong predictions:      23
     Accuracy:               0.603448
-    Precision (macro):      0.545455
-    Recall (macro):         0.519118
-    F1-score (macro):       0.439256
-    Precision (weighted):   0.634796
+    Precision (macro):      0.267143
+    Recall (macro):         0.385294
+    F1-score (macro):       0.315476
+    Precision (weighted):   0.412118
     Recall (weighted):      0.603448
-    F1-score (weighted):    0.509893
+    F1-score (weighted):    0.489737
+    ROC-AUC (macro OvR):        0.666330
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.6364     1.0000     0.7778         14
-    1                1.0000     0.1765     0.3000         17
-    2                0.5455     0.9000     0.6792         20
-    3                0.0000     0.0000     0.0000          7
+    0                0.4286     0.6000     0.5000          5
+    1                0.0000     0.0000     0.0000          8
+    2                0.0000     0.0000     0.0000         11
+    3                0.6400     0.9412     0.7619         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       14        0        0        0
-               1        6        3        8        0
-               2        2        0       18        0
-               3        0        0        7        0
+               0        3        0        0        2
+               1        2        0        1        5
+               2        0        0        0       11
+               3        2        0        0       32
 
   >> Kernel Ridge Classifier (rbf) (OnlineRetail)
-  [Timer] KRR_clf_rbf - OnlineRetail: 0.0350 seconds
+  [Timer] KRR_clf_rbf - OnlineRetail: 0.0263 seconds
+    [Memory] kernel matrix measured=1.87 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KRR_clf_rbf Classification Metrics:
     Num test samples:       58
-    Correct predictions:    45
-    Wrong predictions:      13
-    Accuracy:               0.775862
-    Precision (macro):      0.728424
-    Recall (macro):         0.688445
-    F1-score (macro):       0.682078
-    Precision (weighted):   0.755760
-    Recall (weighted):      0.775862
-    F1-score (weighted):    0.751827
+    Correct predictions:    33
+    Wrong predictions:      25
+    Accuracy:               0.568966
+    Precision (macro):      0.319444
+    Recall (macro):         0.428610
+    F1-score (macro):       0.356479
+    Precision (weighted):   0.460728
+    Recall (weighted):      0.568966
+    F1-score (weighted):    0.503515
+    ROC-AUC (macro OvR):        0.640515
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9286     0.9286     0.9286         14
-    1                0.7895     0.8824     0.8333         17
-    2                0.6957     0.8000     0.7442         20
-    3                0.5000     0.1429     0.2222          7
+    0                0.4444     0.8000     0.5714          5
+    1                0.0000     0.0000     0.0000          8
+    2                0.1667     0.0909     0.1176         11
+    3                0.6667     0.8235     0.7368         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       13        1        0        0
-               1        1       15        1        0
-               2        0        3       16        1
-               3        0        0        6        1
+               0        4        0        1        0
+               1        2        0        1        5
+               2        0        1        1        9
+               3        3        0        3       28
 
   >> Kernel KNN (rbf) (OnlineRetail)
-  [Timer] KernelKNN_rbf - OnlineRetail: 0.0007 seconds
+  [Timer] KernelKNN_rbf - OnlineRetail: 0.0000 seconds
+    [Memory] kernel matrix measured=0.00 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KernelKNN_rbf Classification Metrics:
     Num test samples:       58
-    Correct predictions:    45
-    Wrong predictions:      13
-    Accuracy:               0.775862
-    Precision (macro):      0.750029
-    Recall (macro):         0.763445
-    F1-score (macro):       0.754732
-    Precision (weighted):   0.769058
-    Recall (weighted):      0.775862
-    F1-score (weighted):    0.769946
+    Correct predictions:    33
+    Wrong predictions:      25
+    Accuracy:               0.568966
+    Precision (macro):      0.440278
+    Recall (macro):         0.483255
+    F1-score (macro):       0.432359
+    Precision (weighted):   0.550766
+    Recall (weighted):      0.568966
+    F1-score (weighted):    0.546671
+    ROC-AUC (macro OvR):        0.676480
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                0.9333     1.0000     0.9655         14
-    1                0.7895     0.8824     0.8333         17
-    2                0.7059     0.6000     0.6486         20
-    3                0.5714     0.5714     0.5714          7
+    0                0.4000     0.8000     0.5333          5
+    1                0.3333     0.1250     0.1818          8
+    2                0.3333     0.2727     0.3000         11
+    3                0.6944     0.7353     0.7143         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0       14        0        0        0
-               1        0       15        2        0
-               2        1        4       12        3
-               3        0        0        3        4
+               0        4        0        0        1
+               1        3        1        1        3
+               2        0        1        3        7
+               3        3        1        5       25
 
   >> KPCA + LogReg (OnlineRetail)
-  [Timer] KPCA_LogReg - OnlineRetail: 0.0394 seconds
+  [Timer] KPCA_LogReg - OnlineRetail: 0.0518 seconds
+    [Memory] kernel matrix measured=0.47 MB, analytic n^2*8=0.47 MB (n_train=242)
   [OnlineRetail] KPCA+LogReg Classification Metrics:
     Num test samples:       58
-    Correct predictions:    29
-    Wrong predictions:      29
-    Accuracy:               0.500000
-    Precision (macro):      0.358696
-    Recall (macro):         0.410714
-    F1-score (macro):       0.347167
-    Precision (weighted):   0.391304
-    Recall (weighted):      0.500000
-    F1-score (weighted):    0.397892
+    Correct predictions:    34
+    Wrong predictions:      24
+    Accuracy:               0.586207
+    Precision (macro):      0.146552
+    Recall (macro):         0.250000
+    F1-score (macro):       0.184783
+    Precision (weighted):   0.343639
+    Recall (weighted):      0.586207
+    F1-score (weighted):    0.433283
+    ROC-AUC (macro OvR):        0.680089
     --- Per-Class Breakdown ---
     Class         Precision     Recall         F1    Support
-    0                1.0000     0.6429     0.7826         14
-    1                0.0000     0.0000     0.0000         17
-    2                0.4348     1.0000     0.6061         20
-    3                0.0000     0.0000     0.0000          7
+    0                0.0000     0.0000     0.0000          5
+    1                0.0000     0.0000     0.0000          8
+    2                0.0000     0.0000     0.0000         11
+    3                0.5862     1.0000     0.7391         34
     --- Confusion Matrix (rows=actual, cols=predicted) ---
                         0        1        2        3
-               0        9        3        2        0
-               1        0        0       17        0
-               2        0        0       20        0
-               3        0        0        7        0
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\OnlineRetail_kernel_comparison.png
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_Accuracy_classification_comparison.png
+               0        0        0        0        5
+               1        0        0        0        8
+               2        0        0        0       11
+               3        0        0        0       34
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\OnlineRetail_kernel_comparison.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_Accuracy_classification_comparison.png
 
-  Failure analysis using KernelKNN_linear...
+  Failure analysis using LogisticReg...
 
-  --- Failure Analysis: KernelKNN_linear on OnlineRetail ---
-    10 worst prediction indices: [394, 276, 412, 411, 454, 269, 517, 452, 409, 514]
-      #1: idx=394, actual=3, predicted=2
-      #2: idx=276, actual=1, predicted=2
-      #3: idx=412, actual=0, predicted=1
-      #4: idx=411, actual=2, predicted=1
-      #5: idx=454, actual=0, predicted=1
-      #6: idx=269, actual=1, predicted=2
-      #7: idx=517, actual=3, predicted=2
-      #8: idx=452, actual=1, predicted=0
-      #9: idx=409, actual=1, predicted=0
-      #10: idx=514, actual=2, predicted=1
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\OnlineRetail_KernelKNN_linear_worst_predictions.png
+  --- Failure Analysis: LogisticReg on OnlineRetail ---
+    10 worst prediction indices: [28, 32, 34, 35, 391, 392, 395, 397, 398, 400]
+      #1: idx=28, actual=2, predicted=3
+      #2: idx=32, actual=2, predicted=3
+      #3: idx=34, actual=0, predicted=3
+      #4: idx=35, actual=2, predicted=3
+      #5: idx=391, actual=1, predicted=3
+      #6: idx=392, actual=1, predicted=3
+      #7: idx=395, actual=1, predicted=3
+      #8: idx=397, actual=2, predicted=3
+      #9: idx=398, actual=1, predicted=3
+      #10: idx=400, actual=0, predicted=3
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\OnlineRetail_LogisticReg_worst_predictions.png
 
-  Regression data: X=(2631, 13), target mean=6.2009
-  Regression Train: (2105, 13), Test: (526, 13)
+  Regression data: X=(2112, 14), target mean=2.4874
+  Regression Train: (1690, 14), Test: (422, 14)
 
   >> Linear Regression (OnlineRetail)
-  [Timer] LinReg train - OnlineRetail: 0.0004 seconds
+  [Timer] LinReg train - OnlineRetail: 0.0002 seconds
   [OnlineRetail] Linear Regression Regression Metrics:
-    Num test samples:   526
-    Target mean:        6.170384
-    Target std:         1.007607
-    Prediction mean:    6.138193
-    Prediction std:     0.779791
-    MSE:                0.342813
-    RMSE:               0.585503
-    MAE:                0.454947
-    R-squared (R2):     0.662343
-    Target variance:    1.015271
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_LinearReg_regression_scatter.png
+    Num test samples:   422
+    Target mean:        2.606520
+    Target std:         3.012985
+    Prediction mean:    2.457100
+    Prediction std:     1.110392
+    MSE:                7.394025
+    RMSE:               2.719196
+    MAE:                2.532971
+    R-squared (R2):     0.185508
+    Target variance:    9.078078
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_LinearReg_regression_scatter.png
 
   >> KNN Regressor (OnlineRetail)
   [Timer] KNN_Reg train - OnlineRetail: 0.0000 seconds
   [OnlineRetail] KNN Regressor Regression Metrics:
-    Num test samples:   526
-    Target mean:        6.170384
-    Target std:         1.007607
-    Prediction mean:    6.129913
-    Prediction std:     0.862005
-    MSE:                0.203311
-    RMSE:               0.450900
-    MAE:                0.347197
-    R-squared (R2):     0.799747
-    Target variance:    1.015271
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_KNN_Reg_regression_scatter.png
+    Num test samples:   422
+    Target mean:        2.606520
+    Target std:         3.012985
+    Prediction mean:    2.476092
+    Prediction std:     1.712496
+    MSE:                8.554527
+    RMSE:               2.924812
+    MAE:                2.435505
+    R-squared (R2):     0.057672
+    Target variance:    9.078078
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_KNN_Reg_regression_scatter.png
 
   >> Decision Tree Regressor (OnlineRetail)
-  [Timer] DTree_Reg train - OnlineRetail: 1.0787 seconds
+  [Timer] DTree_Reg train - OnlineRetail: 0.6896 seconds
   [OnlineRetail] Decision Tree Regressor Regression Metrics:
-    Num test samples:   526
-    Target mean:        6.170384
-    Target std:         1.007607
-    Prediction mean:    6.155916
-    Prediction std:     0.990565
-    MSE:                0.089261
-    RMSE:               0.298765
-    MAE:                0.220531
-    R-squared (R2):     0.912082
-    Target variance:    1.015271
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_DTree_Reg_regression_scatter.png
+    Num test samples:   422
+    Target mean:        2.606520
+    Target std:         3.012985
+    Prediction mean:    2.608529
+    Prediction std:     2.438096
+    MSE:                10.824724
+    RMSE:               3.290095
+    MAE:                2.398061
+    R-squared (R2):     -0.192403
+    Target variance:    9.078078
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_DTree_Reg_regression_scatter.png
 
   >> Kernel Ridge Regression (linear) (OnlineRetail)
-  [Timer] KRR_reg_linear - OnlineRetail: 0.0026 seconds
+  [Timer] KRR_reg_linear - OnlineRetail: 0.0034 seconds
   [OnlineRetail] KRR_reg_linear Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    -0.141532
-    Prediction std:     0.836342
-    MSE:                39.299471
-    RMSE:               6.268929
-    MAE:                6.239367
-    R-squared (R2):     -40.091362
-    Target variance:    0.956393
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\OnlineRetail_KRR_reg_linear_regression_scatter.png
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    -0.530957
+    Prediction std:     2.308158
+    MSE:                22.128152
+    RMSE:               4.704057
+    MAE:                3.500247
+    R-squared (R2):     -1.319626
+    Target variance:    9.539535
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\OnlineRetail_KRR_reg_linear_regression_scatter.png
 
   >> Kernel KNN Regressor (linear) (OnlineRetail)
-  [Timer] KernelKNN_reg_linear - OnlineRetail: 0.0048 seconds
+  [Timer] KernelKNN_reg_linear - OnlineRetail: 0.0000 seconds
   [OnlineRetail] KernelKNN_reg_linear Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    6.118693
-    Prediction std:     0.718930
-    MSE:                0.260778
-    RMSE:               0.510664
-    MAE:                0.423593
-    R-squared (R2):     0.727332
-    Target variance:    0.956393
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    2.439653
+    Prediction std:     1.690601
+    MSE:                10.582309
+    RMSE:               3.253046
+    MAE:                2.754984
+    R-squared (R2):     -0.109311
+    Target variance:    9.539535
 
   >> Kernel Ridge Regression (poly) (OnlineRetail)
-  [Timer] KRR_reg_poly - OnlineRetail: 0.0051 seconds
+  [Timer] KRR_reg_poly - OnlineRetail: 0.0025 seconds
   [OnlineRetail] KRR_reg_poly Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    7.187438
-    Prediction std:     6.192114
-    MSE:                36.344850
-    RMSE:               6.028669
-    MAE:                2.204018
-    R-squared (R2):     -37.002023
-    Target variance:    0.956393
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\OnlineRetail_KRR_reg_poly_regression_scatter.png
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    -2359.457244
+    Prediction std:     16785.217024
+    MSE:                287310682.041373
+    RMSE:               16950.241356
+    MAE:                2368.179823
+    R-squared (R2):     -30117892.075289
+    Target variance:    9.539535
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\OnlineRetail_KRR_reg_poly_regression_scatter.png
 
   >> Kernel KNN Regressor (poly) (OnlineRetail)
-  [Timer] KernelKNN_reg_poly - OnlineRetail: 0.0013 seconds
+  [Timer] KernelKNN_reg_poly - OnlineRetail: 0.0000 seconds
   [OnlineRetail] KernelKNN_reg_poly Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    6.159684
-    Prediction std:     0.667767
-    MSE:                0.331586
-    RMSE:               0.575835
-    MAE:                0.477439
-    R-squared (R2):     0.653295
-    Target variance:    0.956393
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    2.583917
+    Prediction std:     1.807725
+    MSE:                11.159376
+    RMSE:               3.340565
+    MAE:                2.785443
+    R-squared (R2):     -0.169803
+    Target variance:    9.539535
 
   >> Kernel Ridge Regression (rbf) (OnlineRetail)
-  [Timer] KRR_reg_rbf - OnlineRetail: 0.0017 seconds
+  [Timer] KRR_reg_rbf - OnlineRetail: 0.0021 seconds
   [OnlineRetail] KRR_reg_rbf Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    5.605167
-    Prediction std:     1.258429
-    MSE:                2.158418
-    RMSE:               1.469155
-    MAE:                0.709938
-    R-squared (R2):     -1.256832
-    Target variance:    0.956393
-    Saved: c:\Users\-Navid-\Desktop\code\output\section4\OnlineRetail_KRR_reg_rbf_regression_scatter.png
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    2.298697
+    Prediction std:     1.547450
+    MSE:                8.743341
+    RMSE:               2.956914
+    MAE:                2.485059
+    R-squared (R2):     0.083463
+    Target variance:    9.539535
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section4\OnlineRetail_KRR_reg_rbf_regression_scatter.png
 
   >> Kernel KNN Regressor (rbf) (OnlineRetail)
-  [Timer] KernelKNN_reg_rbf - OnlineRetail: 0.0008 seconds
+  [Timer] KernelKNN_reg_rbf - OnlineRetail: 0.0000 seconds
   [OnlineRetail] KernelKNN_reg_rbf Regression Metrics:
     Num test samples:   60
-    Target mean:        6.097835
-    Target std:         0.977953
-    Prediction mean:    6.118693
-    Prediction std:     0.718930
-    MSE:                0.260778
-    RMSE:               0.510664
-    MAE:                0.423593
-    R-squared (R2):     0.727332
-    Target variance:    0.956393
-    Saved: c:\Users\-Navid-\Desktop\code\output\section3\OnlineRetail_R_squared_regression_comparison.png
+    Target mean:        2.840008
+    Target std:         3.088614
+    Prediction mean:    2.440350
+    Prediction std:     1.705666
+    MSE:                10.636873
+    RMSE:               3.261422
+    MAE:                2.755681
+    R-squared (R2):     -0.115031
+    Target variance:    9.539535
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section3\OnlineRetail_R_squared_regression_comparison.png
 
   --- Failure Analysis: LinearReg on OnlineRetail ---
-    10 worst prediction indices: [18, 363, 439, 424, 431, 47, 147, 409, 213, 197]
-      #1: idx=18, actual=8.0103, predicted=10.6157, error=2.6055
-      #2: idx=363, actual=2.9285, predicted=5.5282, error=2.5997
-      #3: idx=439, actual=2.7726, predicted=5.0288, error=2.2563
-      #4: idx=424, actual=8.4796, predicted=10.3343, error=1.8547
-      #5: idx=431, actual=7.5556, predicted=9.3472, error=1.7916
-      #6: idx=47, actual=5.6862, predicted=3.8962, error=1.7900
-      #7: idx=147, actual=3.6055, predicted=5.3151, error=1.7096
-      #8: idx=409, actual=4.0952, predicted=5.8009, error=1.7057
-      #9: idx=213, actual=4.1076, predicted=5.8047, error=1.6971
-      #10: idx=197, actual=3.8286, predicted=5.4065, error=1.5778
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\OnlineRetail_LinearReg_worst_predictions.png
+    10 worst prediction indices: [69, 272, 396, 251, 250, 309, 44, 27, 100, 25]
+      #1: idx=69, actual=7.7062, predicted=2.6029, error=5.1032
+      #2: idx=272, actual=6.4661, predicted=1.5097, error=4.9565
+      #3: idx=396, actual=6.6734, predicted=1.7945, error=4.8789
+      #4: idx=251, actual=6.0670, predicted=1.1888, error=4.8782
+      #5: idx=250, actual=7.2913, predicted=2.4782, error=4.8131
+      #6: idx=309, actual=0.0000, predicted=4.7899, error=4.7899
+      #7: idx=44, actual=6.8192, predicted=2.0917, error=4.7275
+      #8: idx=27, actual=6.0997, predicted=1.4272, error=4.6724
+      #9: idx=100, actual=6.8753, predicted=2.2600, error=4.6153
+      #10: idx=25, actual=5.9752, predicted=1.3650, error=4.6102
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\OnlineRetail_LinearReg_worst_predictions.png
 
 ######################################################################
 # SECTION 5: CROSS-DATASET COMPARISON & DISCUSSION
 ######################################################################
-    Saved: c:\Users\-Navid-\Desktop\code\output\section5\computational_analysis.png
+    Saved: c:\Users\-Navid-\Desktop\3. Assignment 3 - Kernel and Non-Kernel Learning Under Real-World Data Imperfections\code\output\section5\computational_analysis.png
 
 ================================================================================
 COMPREHENSIVE RESULTS SUMMARY
@@ -2410,11 +2565,11 @@ COMPREHENSIVE RESULTS SUMMARY
   DecisionTree                  0.8280     0.8194     0.8277     0.8225     0.8323     0.8280     0.8291
   LogisticReg                   0.8164     0.8079     0.8070     0.8074     0.8161     0.8164     0.8162
   KNN                           0.7980     0.7889     0.7866     0.7877     0.7973     0.7980     0.7976
+  KernelSVM_linear              0.7797     0.7745     0.7771     0.7755     0.7811     0.7797     0.7802
   KernelKNN_linear              0.7797     0.7745     0.7771     0.7755     0.7811     0.7797     0.7802
   KRR_clf_poly                  0.7797     0.7783     0.7665     0.7702     0.7791     0.7797     0.7773
   KernelSVM_rbf                 0.7797     0.7765     0.7824     0.7774     0.7860     0.7797     0.7808
   KernelKNN_rbf                 0.7797     0.7745     0.7771     0.7755     0.7811     0.7797     0.7802
-  KernelSVM_linear              0.7627     0.7581     0.7624     0.7593     0.7664     0.7627     0.7637
   KernelSVM_poly                0.7627     0.7615     0.7676     0.7610     0.7725     0.7627     0.7641
   KRR_clf_rbf                   0.7627     0.7615     0.7676     0.7610     0.7725     0.7627     0.7641
   KernelKNN_poly                0.6441     0.7150     0.6806     0.6374     0.7405     0.6441     0.6299
@@ -2424,15 +2579,15 @@ COMPREHENSIVE RESULTS SUMMARY
   === REGRESSION RESULTS ===
   Model                             R2            MSE         RMSE          MAE
   ------------------------- ---------- -------------- ------------ ------------
-  KRR_reg_rbf                   0.6436     15117.0850     122.9516      79.9000
-  LinearReg                     0.5964     12424.9971     111.4675      67.3963
-  KernelKNN_reg_linear          0.5277     20030.6273     141.5296      90.8700
-  KernelKNN_reg_rbf             0.5277     20030.6273     141.5296      90.8700
-  DTree_Reg                     0.5140     14960.7681     122.3142      68.0620
-  KNN_Reg                       0.4921     15635.5111     125.0420      75.3970
-  KernelKNN_reg_poly            0.3949     25663.3773     160.1979      91.1467
-  KRR_reg_linear               -0.3002     55142.3608     234.8241     209.2656
-  KRR_reg_poly                 -0.9117     81077.4824     284.7411     144.2503
+  KRR_reg_rbf                   0.6154     16311.5378     127.7166      85.9823
+  LinearReg                     0.5277     14538.4959     120.5757      76.3341
+  KernelKNN_reg_linear          0.4779     22143.1907     148.8059      94.8000
+  KernelKNN_reg_rbf             0.4779     22143.1907     148.8059      94.8000
+  KNN_Reg                       0.4712     16279.7203     127.5920      81.0403
+  KernelKNN_reg_poly            0.4125     24916.2327     157.8488      89.6833
+  DTree_Reg                     0.3759     19212.0790     138.6076      82.4523
+  KRR_reg_linear               -0.4570     61791.4030     248.5788     216.7164
+  KRR_reg_poly                 -0.9911     84445.8110     290.5956     167.4569
 
 ------------------------------------------------------------
   Dataset: NYC_311
@@ -2448,7 +2603,7 @@ COMPREHENSIVE RESULTS SUMMARY
   LogisticReg                   0.6958     0.5148     0.5586     0.5227     0.6024     0.6958     0.6283
   DecisionTree                  0.6655     0.6153     0.5970     0.5965     0.6368     0.6655     0.6455
   KNN                           0.6639     0.5922     0.5524     0.5567     0.6313     0.6639     0.6362
-  KernelSVM_poly                0.6071     0.5175     0.5275     0.5167     0.6393     0.6071     0.6178
+  KernelSVM_poly                0.6071     0.5389     0.5185     0.5231     0.6310     0.6071     0.6115
   KernelKNN_linear              0.5536     0.4012     0.4275     0.4107     0.5312     0.5536     0.5368
   KernelKNN_rbf                 0.5536     0.4012     0.4275     0.4107     0.5312     0.5536     0.5368
   KPCA_LogReg                   0.4643     0.1333     0.1846     0.1417     0.3214     0.4643     0.3467
@@ -2458,11 +2613,11 @@ COMPREHENSIVE RESULTS SUMMARY
   === REGRESSION RESULTS ===
   Model                             R2            MSE         RMSE          MAE
   ------------------------- ---------- -------------- ------------ ------------
-  LinearReg                     0.4319       274.1709      16.5581       9.5909
-  KNN_Reg                       0.3975       290.8058      17.0530       8.9786
+  LinearReg                     0.4319       274.1829      16.5585       9.5919
+  KNN_Reg                       0.3975       290.7954      17.0527       8.9769
   KRR_reg_rbf                   0.3386       243.7141      15.6113       8.4988
   KernelKNN_reg_poly            0.2828       264.2831      16.2568       6.8623
-  DTree_Reg                     0.2293       371.9759      19.2867       9.9023
+  DTree_Reg                     0.2312       371.0339      19.2622       9.8548
   KernelKNN_reg_linear          0.2082       291.7683      17.0812       8.0263
   KernelKNN_reg_rbf             0.2082       291.7683      17.0812       8.0263
   KRR_reg_linear               -0.0961       403.8839      20.0969      15.8938
@@ -2475,19 +2630,19 @@ COMPREHENSIVE RESULTS SUMMARY
   === CLASSIFICATION RESULTS ===
   Model                       Accuracy    Prec(M)     Rec(M)      F1(M)    Prec(W)     Rec(W)      F1(W)
   ------------------------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
-  KRR_clf_rbf                   0.8644     0.8718     0.8632     0.8634     0.8709     0.8644     0.8636
-  DecisionTree                  0.8272     0.8277     0.8272     0.8272     0.8277     0.8272     0.8272
-  KernelSVM_rbf                 0.8136     0.8232     0.8121     0.8116     0.8223     0.8136     0.8119
-  KernelSVM_linear              0.7627     0.7742     0.7609     0.7593     0.7733     0.7627     0.7598
-  KNN                           0.7459     0.8147     0.7459     0.7313     0.8147     0.7459     0.7313
-  KernelSVM_poly                0.7288     0.7469     0.7264     0.7224     0.7458     0.7288     0.7231
-  KPCA_LogReg                   0.7288     0.7586     0.7259     0.7190     0.7571     0.7288     0.7199
-  LogisticReg                   0.7175     0.7191     0.7175     0.7170     0.7191     0.7175     0.7170
-  KernelKNN_linear              0.6610     0.7274     0.6563     0.6303     0.7254     0.6610     0.6321
-  KernelKNN_rbf                 0.6610     0.7274     0.6563     0.6303     0.7254     0.6610     0.6321
-  KRR_clf_poly                  0.5424     0.5434     0.5431     0.5418     0.5436     0.5424     0.5416
-  KernelKNN_poly                0.5254     0.7586     0.5172     0.3742     0.7545     0.5254     0.3795
-  KRR_clf_linear                0.5085     0.7500     0.5167     0.3656     0.7542     0.5085     0.3605
+  KRR_clf_linear                0.8983     0.9483     0.5714     0.5977     0.9088     0.8983     0.8629
+  KernelSVM_rbf                 0.8644     0.6922     0.7376     0.7108     0.8812     0.8644     0.8716
+  KRR_clf_rbf                   0.8644     0.6758     0.6758     0.6758     0.8644     0.8644     0.8644
+  KPCA_LogReg                   0.8475     0.6694     0.7280     0.6907     0.8749     0.8475     0.8587
+  KernelSVM_poly                0.8305     0.5948     0.5948     0.5948     0.8305     0.8305     0.8305
+  KRR_clf_poly                  0.8305     0.6267     0.6566     0.6385     0.8504     0.8305     0.8394
+  KernelSVM_linear              0.8136     0.6563     0.7706     0.6814     0.8846     0.8136     0.8379
+  DecisionTree                  0.7816     0.5832     0.5773     0.5799     0.7739     0.7816     0.7776
+  LogisticReg                   0.7099     0.6415     0.7498     0.6360     0.8508     0.7099     0.7474
+  KernelKNN_linear              0.6949     0.5678     0.6415     0.5560     0.8402     0.6949     0.7454
+  KernelKNN_rbf                 0.6949     0.5678     0.6415     0.5560     0.8402     0.6949     0.7454
+  KNN                           0.5597     0.5402     0.5743     0.4905     0.7692     0.5597     0.6181
+  KernelKNN_poly                0.3559     0.5385     0.5728     0.3406     0.8428     0.3559     0.4173
 
 ------------------------------------------------------------
   Dataset: OnlineRetail
@@ -2496,131 +2651,131 @@ COMPREHENSIVE RESULTS SUMMARY
   === CLASSIFICATION RESULTS ===
   Model                       Accuracy    Prec(M)     Rec(M)      F1(M)    Prec(W)     Rec(W)      F1(W)
   ------------------------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
-  KernelKNN_linear              0.7759     0.7500     0.7634     0.7547     0.7691     0.7759     0.7699
-  KRR_clf_rbf                   0.7759     0.7284     0.6884     0.6821     0.7558     0.7759     0.7518
-  KernelKNN_rbf                 0.7759     0.7500     0.7634     0.7547     0.7691     0.7759     0.7699
-  DecisionTree                  0.7676     0.7454     0.7487     0.7469     0.7690     0.7676     0.7682
-  KNN                           0.7086     0.6937     0.6681     0.6776     0.7056     0.7086     0.7049
-  KernelSVM_poly                0.7069     0.6967     0.6952     0.6886     0.7394     0.7069     0.7188
-  LogisticReg                   0.6952     0.5400     0.5746     0.5440     0.6360     0.6952     0.6489
-  KernelSVM_linear              0.6379     0.5971     0.5463     0.4952     0.6814     0.6379     0.5668
-  KernelKNN_poly                0.6379     0.6366     0.6439     0.6373     0.6388     0.6379     0.6346
-  KernelSVM_rbf                 0.6034     0.5455     0.5191     0.4393     0.6348     0.6034     0.5099
-  KRR_clf_linear                0.5690     0.5690     0.6011     0.5641     0.6015     0.5690     0.5698
-  KRR_clf_poly                  0.5517     0.6334     0.5354     0.5092     0.6647     0.5517     0.5396
-  KPCA_LogReg                   0.5000     0.3587     0.4107     0.3472     0.3913     0.5000     0.3979
+  LogisticReg                   0.6588     0.3411     0.3771     0.3473     0.4740     0.6588     0.5446
+  KernelSVM_linear              0.6034     0.2708     0.4706     0.3369     0.4267     0.6034     0.4959
+  KernelSVM_rbf                 0.6034     0.2671     0.3853     0.3155     0.4121     0.6034     0.4897
+  KPCA_LogReg                   0.5862     0.1466     0.2500     0.1848     0.3436     0.5862     0.4333
+  KNN                           0.5758     0.3975     0.3712     0.3772     0.5228     0.5758     0.5427
+  KernelKNN_linear              0.5690     0.4403     0.4833     0.4324     0.5508     0.5690     0.5467
+  KRR_clf_rbf                   0.5690     0.3194     0.4286     0.3565     0.4607     0.5690     0.5035
+  KernelKNN_rbf                 0.5690     0.4403     0.4833     0.4324     0.5508     0.5690     0.5467
+  DecisionTree                  0.5498     0.3791     0.3682     0.3726     0.5360     0.5498     0.5422
+  KRR_clf_linear                0.5345     0.3535     0.4873     0.3892     0.5291     0.5345     0.5195
+  KernelSVM_poly                0.5345     0.3895     0.4532     0.3989     0.5131     0.5345     0.5147
+  KernelKNN_poly                0.5345     0.3854     0.4532     0.4059     0.5374     0.5345     0.5308
+  KRR_clf_poly                  0.3966     0.3156     0.2937     0.3023     0.4607     0.3966     0.4246
 
   === REGRESSION RESULTS ===
   Model                             R2            MSE         RMSE          MAE
   ------------------------- ---------- -------------- ------------ ------------
-  DTree_Reg                     0.9121         0.0893       0.2988       0.2205
-  KNN_Reg                       0.7997         0.2033       0.4509       0.3472
-  KernelKNN_reg_linear          0.7273         0.2608       0.5107       0.4236
-  KernelKNN_reg_rbf             0.7273         0.2608       0.5107       0.4236
-  LinearReg                     0.6623         0.3428       0.5855       0.4549
-  KernelKNN_reg_poly            0.6533         0.3316       0.5758       0.4774
-  KRR_reg_rbf                  -1.2568         2.1584       1.4692       0.7099
-  KRR_reg_poly                -37.0020        36.3449       6.0287       2.2040
-  KRR_reg_linear              -40.0914        39.2995       6.2689       6.2394
+  LinearReg                     0.1855         7.3940       2.7192       2.5330
+  KRR_reg_rbf                   0.0835         8.7433       2.9569       2.4851
+  KNN_Reg                       0.0577         8.5545       2.9248       2.4355
+  KernelKNN_reg_linear         -0.1093        10.5823       3.2530       2.7550
+  KernelKNN_reg_rbf            -0.1150        10.6369       3.2614       2.7557
+  KernelKNN_reg_poly           -0.1698        11.1594       3.3406       2.7854
+  DTree_Reg                    -0.1924        10.8247       3.2901       2.3981
+  KRR_reg_linear               -1.3196        22.1282       4.7041       3.5002
+  KRR_reg_poly              -30117892.0753 287310682.0414   16950.2414    2368.1798
 
 ============================================================
   COMPUTATIONAL ANALYSIS (Training Times in seconds)
 ============================================================
 
   Airbnb:
-    KernelSVM_linear                  38.4852s
-    DTree_Reg                          2.4257s
-    DecisionTree                       2.1908s
-    KernelSVM_rbf                      0.4535s
-    KernelSVM_poly                     0.2182s
-    KPCA_LogReg                        0.0561s
-    LogisticReg                        0.0190s
-    KRR_reg_poly                       0.0185s
-    KRR_clf_linear                     0.0117s
-    KRR_reg_rbf                        0.0077s
-    KRR_clf_poly                       0.0044s
-    KRR_clf_rbf                        0.0033s
-    KernelKNN_poly                     0.0031s
-    KernelKNN_reg_linear               0.0028s
-    KernelKNN_reg_poly                 0.0026s
-    KernelKNN_reg_rbf                  0.0024s
-    LinearReg                          0.0021s
-    KRR_reg_linear                     0.0016s
-    KernelKNN_linear                   0.0014s
-    KernelKNN_rbf                      0.0007s
-    KNN                                0.0003s
+    DecisionTree                       3.6986s
+    DTree_Reg                          2.2013s
+    KernelSVM_linear                   0.4994s
+    KernelSVM_rbf                      0.2875s
+    KernelSVM_poly                     0.1522s
+    LogisticReg                        0.0625s
+    KPCA_LogReg                        0.0268s
+    KRR_clf_rbf                        0.0263s
+    KRR_reg_linear                     0.0046s
+    KRR_clf_poly                       0.0036s
+    KRR_reg_poly                       0.0029s
+    KRR_clf_linear                     0.0027s
+    KRR_reg_rbf                        0.0026s
+    LinearReg                          0.0006s
+    KNN                                0.0004s
     KNN_Reg                            0.0001s
-    TOTAL                             43.9111s
+    KernelKNN_reg_poly                 0.0001s
+    KernelKNN_reg_rbf                  0.0001s
+    KernelKNN_rbf                      0.0001s
+    KernelKNN_reg_linear               0.0001s
+    KernelKNN_poly                     0.0000s
+    KernelKNN_linear                   0.0000s
+    TOTAL                              6.9725s
 
   NYC_311:
-    KernelSVM_linear                  23.8786s
-    KernelSVM_poly                    12.1391s
-    KernelSVM_rbf                      5.0364s
-    DTree_Reg                          0.4174s
-    DecisionTree                       0.4026s
-    LogisticReg                        0.1663s
-    KPCA_LogReg                        0.0819s
-    KRR_clf_poly                       0.0356s
-    KRR_clf_rbf                        0.0321s
-    KRR_clf_linear                     0.0231s
-    KernelKNN_reg_poly                 0.0030s
-    KRR_reg_linear                     0.0027s
-    KRR_reg_poly                       0.0025s
-    KernelKNN_reg_linear               0.0021s
-    KRR_reg_rbf                        0.0017s
-    KernelKNN_poly                     0.0012s
-    KernelKNN_reg_rbf                  0.0010s
-    KernelKNN_rbf                      0.0009s
-    KernelKNN_linear                   0.0006s
+    KernelSVM_poly                     3.5091s
+    KernelSVM_linear                   3.4361s
+    KernelSVM_rbf                      3.4217s
+    DecisionTree                       0.4188s
+    DTree_Reg                          0.3901s
+    LogisticReg                        0.1631s
+    KPCA_LogReg                        0.0709s
+    KRR_clf_rbf                        0.0407s
+    KRR_clf_linear                     0.0335s
+    KRR_clf_poly                       0.0214s
+    KRR_reg_poly                       0.0037s
+    KRR_reg_linear                     0.0028s
+    KRR_reg_rbf                        0.0021s
     LinearReg                          0.0004s
+    KernelKNN_reg_poly                 0.0002s
     KNN                                0.0002s
     KNN_Reg                            0.0001s
-    TOTAL                             42.2294s
+    KernelKNN_rbf                      0.0001s
+    KernelKNN_poly                     0.0001s
+    KernelKNN_reg_linear               0.0001s
+    KernelKNN_linear                   0.0001s
+    KernelKNN_reg_rbf                  0.0001s
+    TOTAL                             11.5153s
 
   IBM_HR:
-    KernelSVM_linear                  12.7856s
-    DecisionTree                       0.9940s
-    KernelSVM_poly                     0.3609s
-    KernelSVM_rbf                      0.2679s
-    KPCA_LogReg                        0.0353s
-    LogisticReg                        0.0134s
-    KRR_clf_rbf                        0.0037s
-    KRR_clf_linear                     0.0029s
-    KRR_clf_poly                       0.0029s
-    KernelKNN_poly                     0.0012s
-    KernelKNN_rbf                      0.0010s
-    KernelKNN_linear                   0.0009s
+    DecisionTree                       0.9935s
+    KernelSVM_linear                   0.8940s
+    KernelSVM_rbf                      0.6874s
+    KernelSVM_poly                     0.3027s
+    KPCA_LogReg                        0.0756s
+    KRR_clf_rbf                        0.0134s
+    LogisticReg                        0.0115s
+    KRR_clf_poly                       0.0095s
+    KRR_clf_linear                     0.0088s
     KNN                                0.0001s
-    TOTAL                             14.4698s
+    KernelKNN_poly                     0.0001s
+    KernelKNN_linear                   0.0001s
+    KernelKNN_rbf                      0.0001s
+    TOTAL                              2.9969s
 
   OnlineRetail:
-    KernelSVM_poly                  7288.9004s
-    KernelSVM_linear                  12.2283s
-    KernelSVM_rbf                      2.2535s
-    DTree_Reg                          1.0787s
-    DecisionTree                       0.8071s
-    LogisticReg                        0.0500s
-    KPCA_LogReg                        0.0394s
-    KRR_clf_rbf                        0.0350s
-    KRR_clf_linear                     0.0114s
-    KRR_clf_poly                       0.0102s
-    KRR_reg_poly                       0.0051s
-    KernelKNN_reg_linear               0.0048s
-    KRR_reg_linear                     0.0026s
-    KRR_reg_rbf                        0.0017s
-    KernelKNN_poly                     0.0013s
-    KernelKNN_reg_poly                 0.0013s
-    KernelKNN_reg_rbf                  0.0008s
-    KernelKNN_linear                   0.0007s
-    KernelKNN_rbf                      0.0007s
-    LinearReg                          0.0004s
+    KernelSVM_poly                     2.6450s
+    KernelSVM_rbf                      1.5396s
+    KernelSVM_linear                   1.3893s
+    DecisionTree                       0.9566s
+    DTree_Reg                          0.6896s
+    LogisticReg                        0.0554s
+    KPCA_LogReg                        0.0518s
+    KRR_clf_rbf                        0.0263s
+    KRR_clf_linear                     0.0254s
+    KRR_clf_poly                       0.0233s
+    KRR_reg_linear                     0.0034s
+    KRR_reg_poly                       0.0025s
+    KRR_reg_rbf                        0.0021s
+    KNN                                0.0004s
+    LinearReg                          0.0002s
+    KernelKNN_reg_poly                 0.0000s
+    KernelKNN_poly                     0.0000s
+    KernelKNN_rbf                      0.0000s
+    KernelKNN_reg_linear               0.0000s
+    KernelKNN_reg_rbf                  0.0000s
+    KernelKNN_linear                   0.0000s
     KNN_Reg                            0.0000s
-    KNN                                0.0000s
-    TOTAL                           7305.4332s
+    TOTAL                              7.4112s
 
 ================================================================================
-TOTAL EXECUTION TIME: 7849.30 seconds (130.8 minutes)
+TOTAL EXECUTION TIME: 508.18 seconds (8.5 minutes)
 ================================================================================
 
-[Done] exited with code=0 in 7850.972 seconds
+[Done] exited with code=0 in 509.911 seconds
 

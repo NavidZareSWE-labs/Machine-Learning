@@ -167,26 +167,62 @@ def load_and_engineer(data_dir, output_dir, max_rows=None):
     print("\n  [Step 10] Preparing final feature matrices...")
     clean_df = df.copy()
 
-    feature_cols = [c for c in df.select_dtypes(include=[np.number]).columns
-                    if c not in ['price', 'host_is_superhost']]
+    # ---- Target leakage: price regression ----
+    # estimated_revenue_l365d == price * estimated_occupancy_l365d, verified
+    # exactly (18728/18728 rows, max deviation 0.0), so price is recoverable
+    # as their ratio. Dropping revenue breaks the identity; occupancy is kept
+    # since it is not price-derived and reconstructs nothing alone.
+    # Leak is target-specific: neither column derives from superhost status,
+    # so both stay in the classification matrix.
+    PRICE_DERIVED_FEATURES = ['estimated_revenue_l365d']
 
-    X = df[feature_cols].values.astype(np.float64)
+    base_cols = [c for c in df.select_dtypes(include=[np.number]).columns
+                 if c not in ['price', 'host_is_superhost']]
+
+    feature_cols_clf = list(base_cols)
+    feature_cols_reg = [c for c in base_cols
+                        if c not in PRICE_DERIVED_FEATURES]
+
+    dropped = [c for c in base_cols if c in PRICE_DERIVED_FEATURES]
+    print(f"    Dropped {len(dropped)} price-derived feature(s) from the "
+          f"REGRESSION matrix: {dropped}")
+    print(f"    Retained for CLASSIFICATION (not superhost-derived): "
+          f"{dropped}")
+
+    # Guard: the reconstruction identity must stay broken.
+    if ('estimated_revenue_l365d' in feature_cols_reg
+            and 'estimated_occupancy_l365d' in feature_cols_reg):
+        raise ValueError(
+            "price is reconstructible from estimated_revenue_l365d / "
+            "estimated_occupancy_l365d; refusing to build the regression "
+            "matrix.")
+
+    X_clf = df[feature_cols_clf].values.astype(np.float64)
+    X_reg = df[feature_cols_reg].values.astype(np.float64)
     y_reg = df['price'].values.astype(np.float64)
     y_clf = df['host_is_superhost'].values.astype(np.int32)
 
-    X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    X_clf = np.nan_to_num(X_clf, nan=0.0, posinf=0.0, neginf=0.0)
+    X_reg = np.nan_to_num(X_reg, nan=0.0, posinf=0.0, neginf=0.0)
 
-    print(f"    Feature matrix shape: {X.shape}")
+    print(f"    Regression feature matrix:     {X_reg.shape}")
+    print(f"    Classification feature matrix: {X_clf.shape}")
     print(
         f"    Regression target (price): mean={y_reg.mean():.2f}, std={y_reg.std():.2f}")
     print(
         f"    Classification target (superhost): " f"{({int(k): int(v) for k, v in zip(*np.unique(y_clf, return_counts=True))})}")
-    print(f"    Feature names ({len(feature_cols)}): {feature_cols[:10]}...")
+    print(f"    Feature names ({len(feature_cols_reg)} reg / "
+          f"{len(feature_cols_clf)} clf): {feature_cols_reg[:10]}...")
+    print(f"    NOTE: superhost status is awarded against thresholds on "
+          f"response rate, rating and stay count, all present as features, "
+          f"so the classifier partly recovers a rule. Inherent to the task; "
+          f"disclose in the report.")
 
     return {
-        'X_reg': X.copy(), 'y_reg': y_reg,
-        'X_clf': X.copy(), 'y_clf': y_clf,
-        'feature_names': feature_cols,
+        'X_reg': X_reg, 'y_reg': y_reg,
+        'X_clf': X_clf, 'y_clf': y_clf,
+        'feature_names': feature_cols_clf,
+        'feature_names_reg': feature_cols_reg,
         'raw_df': raw_df,
         'clean_df': clean_df,
         'dataset_name': 'Airbnb'
