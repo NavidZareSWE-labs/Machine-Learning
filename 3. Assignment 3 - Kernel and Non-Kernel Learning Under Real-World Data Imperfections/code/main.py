@@ -19,6 +19,7 @@ from visualize import (plot_missing_data, plot_outlier_comparison,  # noqa: E402
 from utils.metrics import (classification_report, regression_report,  # noqa: E402
                            confusion_matrix as compute_cm, Timer)  # noqa: E402
 from utils.preprocessing import StandardScaler, train_test_split, smote_oversample  # noqa: E402
+from utils.metrics import compute_auc, kernel_matrix_memory  # noqa: E402
 from section3.kpca import KPCAClassifier  # noqa: E402
 from section3.kernel_knn import KernelKNNClassifier, KernelKNNRegressor  # noqa: E402
 from section3.kernel_svm import KernelSVMClassifier  # noqa: E402
@@ -32,6 +33,13 @@ from section1 import airbnb, nyc311, ibm_hr, online_retail  # noqa: E402
 
 
 warnings.filterwarnings('ignore')
+
+# Global seed as a safety net; every module also uses an explicit RandomState.
+np.random.seed(42)
+RANDOM_STATE = 42
+
+# Exact kernel-matrix footprints, keyed [dataset][model].
+MEMORY_LOG = {}
 
 # ---- Configuration ----
 DATA_DIR = os.path.join(ROOT_DIR, 'data')
@@ -49,6 +57,41 @@ def subsample_if_needed(X, y, max_n, random_state=42):
     return X[idx], y[idx]
 
 
+
+def model_scores(model, X):
+    """Best available continuous score matrix for ROC-AUC, else None.
+
+    Prefers raw margins over probabilities: AUC only needs a ranking, and
+    margins rank more finely.
+    """
+    for attr in ('decision_scores', 'predict_proba'):
+        fn = getattr(model, attr, None)
+        if callable(fn):
+            try:
+                sc = fn(X)
+                if sc is not None and np.asarray(sc).ndim == 2:
+                    return np.asarray(sc, dtype=float)
+            except Exception:
+                continue
+    return None
+
+
+def report_kernel_memory(model, model_name, dataset_name, n_train, mem_log):
+    """Record the exact O(n^2) kernel footprint via ndarray.nbytes.
+
+    Zero overhead, so it does not distort the timings reported alongside it.
+    """
+    measured = getattr(model, 'kernel_matrix_bytes_', 0) or 0
+    analytic = kernel_matrix_memory(n_train)
+    mem_log.setdefault(dataset_name, {})[model_name] = {
+        'measured_bytes': int(measured),
+        'analytic_bytes': int(analytic),
+        'n_train': int(n_train),
+    }
+    print(f"    [Memory] kernel matrix measured={measured/1e6:.2f} MB, "
+          f"analytic n^2*8={analytic/1e6:.2f} MB (n_train={n_train})")
+
+
 def run_classification_models(X_train, y_train, X_test, y_test,
                               dataset_name, output_dir, timings):
     results = {}
@@ -61,7 +104,8 @@ def run_classification_models(X_train, y_train, X_test, y_test,
     timings[dataset_name]['LogisticReg'] = t.elapsed
     y_pred = model.predict(X_test)
     results['LogisticReg'] = classification_report(
-        y_test, y_pred, dataset_name, "Logistic Regression")
+        y_test, y_pred, dataset_name, "Logistic Regression",
+        y_score=model_scores(model, X_test), classes=model.classes_)
     cm, labels = compute_cm(y_test, y_pred)
     plot_confusion_matrix(cm, labels, dataset_name, 'LogisticReg', output_dir)
 
@@ -72,7 +116,9 @@ def run_classification_models(X_train, y_train, X_test, y_test,
         model.fit(X_train, y_train)
     timings[dataset_name]['KNN'] = t.elapsed
     y_pred = model.predict(X_test)
-    results['KNN'] = classification_report(y_test, y_pred, dataset_name, "KNN")
+    results['KNN'] = classification_report(
+        y_test, y_pred, dataset_name, "KNN",
+        y_score=model_scores(model, X_test), classes=model.classes_)
     cm, labels = compute_cm(y_test, y_pred)
     plot_confusion_matrix(cm, labels, dataset_name, 'KNN', output_dir)
 
@@ -84,7 +130,8 @@ def run_classification_models(X_train, y_train, X_test, y_test,
     timings[dataset_name]['DecisionTree'] = t.elapsed
     y_pred = model.predict(X_test)
     results['DecisionTree'] = classification_report(
-        y_test, y_pred, dataset_name, "Decision Tree")
+        y_test, y_pred, dataset_name, "Decision Tree",
+        y_score=model_scores(model, X_test), classes=model.classes_)
     cm, labels = compute_cm(y_test, y_pred)
     plot_confusion_matrix(cm, labels, dataset_name, 'DecisionTree', output_dir)
 
@@ -155,15 +202,22 @@ def run_kernel_classification(X_train, y_train, X_test, y_test,
         print(f"\n  >> Kernel SVM ({kernel_type}) ({dataset_name})")
         try:
             with Timer(f"{model_name} - {dataset_name}") as t:
-                # Comment out the next line for more accurate results. Poly SVM took ~2hr on my rig without it. The Report was generated with the 2 hour run.
-                svm_max_iter = 10 if kernel_type == 'poly' else 30
+                # max_passes = CS229 convergence criterion; max_epochs caps
+                # total work so a poly fit cannot run unbounded.
+                svm_max_passes = 10 if kernel_type == 'poly' else 30
                 model = KernelSVMClassifier(C=1.0, kernel_type=kernel_type,
-                                            max_iter=svm_max_iter, **kp)
+                                            max_passes=svm_max_passes,
+                                            max_epochs=300,
+                                            random_state=RANDOM_STATE, **kp)
                 model.fit(X_train, y_train)
             timings[dataset_name][model_name] = t.elapsed
+            report_kernel_memory(model, model_name, dataset_name,
+                                 len(y_train), MEMORY_LOG)
             y_pred = model.predict(X_test)
             res = classification_report(
-                y_test, y_pred, dataset_name, model_name)
+                y_test, y_pred, dataset_name, model_name,
+                y_score=model_scores(model, X_test),
+                classes=model.classes_)
             results[model_name] = res
             kernel_comparison[kernel_type]['KernelSVM'] = res['accuracy']
         except Exception as e:
@@ -181,9 +235,13 @@ def run_kernel_classification(X_train, y_train, X_test, y_test,
                                               reg_lambda=1.0, **kp)
                 model.fit(X_train, y_train)
             timings[dataset_name][model_name] = t.elapsed
+            report_kernel_memory(model, model_name, dataset_name,
+                                 len(y_train), MEMORY_LOG)
             y_pred = model.predict(X_test)
             res = classification_report(
-                y_test, y_pred, dataset_name, model_name)
+                y_test, y_pred, dataset_name, model_name,
+                y_score=model_scores(model, X_test),
+                classes=model.classes_)
             results[model_name] = res
             kernel_comparison[kernel_type]['KRR'] = res['accuracy']
         except Exception as e:
@@ -199,9 +257,13 @@ def run_kernel_classification(X_train, y_train, X_test, y_test,
                 model = KernelKNNClassifier(k=5, kernel_type=kernel_type, **kp)
                 model.fit(X_train, y_train)
             timings[dataset_name][model_name] = t.elapsed
+            report_kernel_memory(model, model_name, dataset_name,
+                                 len(y_train), MEMORY_LOG)
             y_pred = model.predict(X_test)
             res = classification_report(
-                y_test, y_pred, dataset_name, model_name)
+                y_test, y_pred, dataset_name, model_name,
+                y_score=model_scores(model, X_test),
+                classes=model.classes_)
             results[model_name] = res
             kernel_comparison[kernel_type]['KernelKNN'] = res['accuracy']
         except Exception as e:
@@ -219,9 +281,13 @@ def run_kernel_classification(X_train, y_train, X_test, y_test,
                                    gamma=gamma_kpca, lr=0.05, n_iters=300)
             model.fit(X_train, y_train)
         timings[dataset_name]['KPCA_LogReg'] = t.elapsed
+        report_kernel_memory(model, 'KPCA_LogReg', dataset_name,
+                             len(y_train), MEMORY_LOG)
         y_pred = model.predict(X_test)
         res = classification_report(
-            y_test, y_pred, dataset_name, "KPCA+LogReg")
+            y_test, y_pred, dataset_name, "KPCA+LogReg",
+            y_score=model_scores(model, X_test),
+            classes=model.classes_)
         results['KPCA_LogReg'] = res
         kernel_comparison.setdefault(
             'rbf', {})['KPCA_LogReg'] = res['accuracy']

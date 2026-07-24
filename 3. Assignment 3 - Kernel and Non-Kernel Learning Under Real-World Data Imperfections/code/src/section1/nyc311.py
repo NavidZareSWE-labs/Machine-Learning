@@ -3,6 +3,17 @@ import pandas as pd
 import os
 
 
+def _dedup(seq):
+    """Order-preserving de-duplication."""
+    seen = set()
+    out = []
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+
 def load_and_engineer(data_dir, output_dir, max_rows=100000):
     print("\n" + "=" * 80)
     print("DATASET 2: NYC 311 SERVICE REQUESTS")
@@ -161,7 +172,11 @@ def load_and_engineer(data_dir, output_dir, max_rows=100000):
     print("\n  [Step 8] Building regression arrays...")
     valid_reg_features = [c for c in feature_cols if c in df_reg.columns]
     reg_dummy_cols = [c for c in df_reg.columns if any(c.startswith(p) for p in dummy_col_prefixes)]
-    valid_reg_features = list(set(valid_reg_features + [c for c in reg_dummy_cols if c in df_reg.columns]))
+    # Order-preserving dedup: list(set(...)) varies per process
+    # (PYTHONHASHSEED), so the reported feature list was not reproducible.
+    valid_reg_features = _dedup(
+        valid_reg_features + [c for c in reg_dummy_cols
+                              if c in df_reg.columns])
     for col in valid_reg_features:
         df_reg[col] = pd.to_numeric(df_reg[col], errors='coerce')
     df_reg[valid_reg_features] = df_reg[valid_reg_features].fillna(df_reg[valid_reg_features].median())

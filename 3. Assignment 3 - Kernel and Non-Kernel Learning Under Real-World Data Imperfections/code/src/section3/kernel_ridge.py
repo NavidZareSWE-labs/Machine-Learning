@@ -12,14 +12,20 @@ class KernelRidgeRegression:
         self.kernel_params = kernel_params
         self.alpha = None
         self.X_train = None
+        self.kernel_matrix_bytes_ = 0
 
     def fit(self, X, y):
         self.X_train = X.copy()
         n = X.shape[0]
 
         K = compute_kernel_matrix(X, kernel_type=self.kernel_type, **self.kernel_params)
+        self.kernel_matrix_bytes_ = int(K.nbytes)  # O(n^2) footprint
         A = K + self.reg_lambda * np.eye(n)
-        self.alpha = solve(A, y, assume_a='pos')
+        try:
+            self.alpha = solve(A, y, assume_a='pos')
+        except Exception:
+            # Poly kernels can lose positive-definiteness to rounding.
+            self.alpha = np.linalg.lstsq(A, y, rcond=None)[0]
 
         return self
 
@@ -60,6 +66,13 @@ class KernelRidgeClassifier:
 
         return self
 
+    def decision_scores(self, X):
+        """Raw regression scores per class, for ROC-AUC."""
+        if len(self.classes_) == 2:
+            s = self.ovr_models_[0].predict(X)
+            return np.column_stack([1.0 - s, s])
+        return np.column_stack([m.predict(X) for m in self.ovr_models_])
+
     def predict(self, X):
         if len(self.classes_) == 2:
             scores = self.ovr_models_[0].predict(X)
@@ -67,3 +80,7 @@ class KernelRidgeClassifier:
         else:
             all_scores = np.column_stack([m.predict(X) for m in self.ovr_models_])
             return self.classes_[np.argmax(all_scores, axis=1)]
+
+    @property
+    def kernel_matrix_bytes_(self):
+        return int(sum(m.kernel_matrix_bytes_ for m in self.ovr_models_))

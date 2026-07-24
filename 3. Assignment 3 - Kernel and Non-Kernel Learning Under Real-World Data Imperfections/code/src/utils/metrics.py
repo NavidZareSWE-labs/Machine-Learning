@@ -1,5 +1,7 @@
 import numpy as np
 import time
+import tracemalloc
+from scipy.stats import rankdata
 
 
 def accuracy(y_true, y_pred):
@@ -61,6 +63,48 @@ def precision_recall_f1(y_true, y_pred, average='macro'):
         return precisions, recalls, f1s
 
 
+def roc_auc_binary(y_true, y_score, positive_label=1):
+    """ROC-AUC for a binary target, via the Mann-Whitney U identity:
+
+        AUC = (sum(ranks of positives) - n_pos(n_pos+1)/2) / (n_pos * n_neg)
+
+    rankdata gives mid-ranks to ties, i.e. the 0.5 credit a tie deserves.
+    """
+    y_true = np.asarray(y_true)
+    y_score = np.asarray(y_score, dtype=float)
+
+    pos = (y_true == positive_label)
+    n_pos = int(pos.sum())
+    n_neg = int(len(y_true) - n_pos)
+
+    if n_pos == 0 or n_neg == 0:
+        return float('nan')
+
+    ranks = rankdata(y_score)
+    return float((ranks[pos].sum() - n_pos * (n_pos + 1) / 2.0)
+                 / (n_pos * n_neg))
+
+
+def roc_auc_ovr_macro(y_true, score_matrix, classes):
+    """Macro-averaged one-vs-rest ROC-AUC for multi-class problems."""
+    y_true = np.asarray(y_true)
+    aucs = []
+    for i, c in enumerate(classes):
+        a = roc_auc_binary((y_true == c).astype(int), score_matrix[:, i], 1)
+        if not np.isnan(a):
+            aucs.append(a)
+    return float(np.mean(aucs)) if aucs else float('nan')
+
+
+def compute_auc(y_true, score_matrix, classes):
+    """Dispatch to binary or macro-OvR AUC based on class count."""
+    classes = np.asarray(classes)
+    if len(classes) == 2:
+        return roc_auc_binary((np.asarray(y_true) == classes[1]).astype(int),
+                              score_matrix[:, 1], 1)
+    return roc_auc_ovr_macro(y_true, score_matrix, classes)
+
+
 def mse(y_true, y_pred):
     return np.mean((y_true - y_pred) ** 2)
 
@@ -110,7 +154,8 @@ def regression_report(y_true, y_pred, dataset_name="", model_name=""):
             'pred_mean': pred_mean, 'pred_std': pred_std}
 
 
-def classification_report(y_true, y_pred, dataset_name="", model_name=""):
+def classification_report(y_true, y_pred, dataset_name="", model_name="",
+                          y_score=None, classes=None):
     acc = accuracy(y_true, y_pred)
     p_macro, r_macro, f1_macro = precision_recall_f1(y_true, y_pred, 'macro')
     p_w, r_w, f1_w = precision_recall_f1(y_true, y_pred, 'weighted')
@@ -132,6 +177,18 @@ def classification_report(y_true, y_pred, dataset_name="", model_name=""):
     print(f"    Recall (weighted):      {r_w:.6f}")
     print(f"    F1-score (weighted):    {f1_w:.6f}")
 
+    auc = float('nan')
+    if y_score is not None and classes is not None:
+        try:
+            auc = compute_auc(y_true, y_score, classes)
+        except Exception:
+            auc = float('nan')
+        if not np.isnan(auc):
+            tag = "binary" if len(np.asarray(classes)) == 2 else "macro OvR"
+            print(f"    ROC-AUC ({tag}):{'':<8}{auc:.6f}")
+    else:
+        print(f"    ROC-AUC:                not available (model exposes no scores)")
+
     print(f"    --- Per-Class Breakdown ---")
     print(f"    {'Class':<12} {'Precision':>10} {'Recall':>10} {'F1':>10} {'Support':>10}")
     for i, lbl in enumerate(labels):
@@ -150,7 +207,7 @@ def classification_report(y_true, y_pred, dataset_name="", model_name=""):
         print(row_str)
 
     return {
-        'accuracy': acc, 'n_samples': n_samples,
+        'accuracy': acc, 'roc_auc': auc, 'n_samples': n_samples,
         'n_correct': n_correct, 'n_wrong': n_wrong,
         'precision_macro': p_macro, 'recall_macro': r_macro, 'f1_macro': f1_macro,
         'precision_weighted': p_w, 'recall_weighted': r_w, 'f1_weighted': f1_w,
@@ -164,14 +221,38 @@ def classification_report(y_true, y_pred, dataset_name="", model_name=""):
 
 
 class Timer:
-    def __init__(self, label=""):
+    """Wall-clock timer with optional peak-allocation tracing.
+
+    trace_memory defaults to False: tracemalloc costs ~2x wall-clock and would
+    corrupt the timings. Kernel-matrix memory is instead read for free from
+    ndarray.nbytes (kernel_matrix_bytes_ on each kernel model).
+    """
+
+    def __init__(self, label="", trace_memory=False):
         self.label = label
+        self.trace_memory = trace_memory
         self.elapsed = 0.0
+        self.peak_mem_bytes = 0
 
     def __enter__(self):
-        self.start = time.time()
+        if self.trace_memory:
+            tracemalloc.start()
+            tracemalloc.reset_peak()
+        self.start = time.perf_counter()
         return self
 
     def __exit__(self, *args):
-        self.elapsed = time.time() - self.start
-        print(f"  [Timer] {self.label}: {self.elapsed:.4f} seconds")
+        self.elapsed = time.perf_counter() - self.start
+        if self.trace_memory:
+            _, peak = tracemalloc.get_traced_memory()
+            self.peak_mem_bytes = int(peak)
+            tracemalloc.stop()
+            print(f"  [Timer] {self.label}: {self.elapsed:.4f} seconds, "
+                  f"peak {self.peak_mem_bytes / 1e6:.2f} MB")
+        else:
+            print(f"  [Timer] {self.label}: {self.elapsed:.4f} seconds")
+
+
+def kernel_matrix_memory(n, dtype_bytes=8):
+    """Analytic memory of a dense n x n kernel matrix, in bytes."""
+    return int(n) * int(n) * int(dtype_bytes)

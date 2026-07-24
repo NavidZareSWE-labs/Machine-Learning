@@ -156,3 +156,62 @@ def random_undersample(X, y, random_state=42):
     idx = np.arange(len(y_out))
     rng.shuffle(idx)
     return X_out[idx], y_out[idx]
+
+
+def k_fold_indices(y, k=5, shuffle=True, random_state=42, stratify=False):
+    """Yield (train_idx, test_idx) for k-fold CV.
+
+    stratify=True preserves class proportions per fold, which matters on
+    skewed targets (IBM HR is 16% positive).
+    """
+    y = np.asarray(y)
+    n = len(y)
+    rng = np.random.RandomState(random_state)
+
+    if stratify:
+        fold_of = np.empty(n, dtype=int)
+        for c in np.unique(y):
+            c_idx = np.where(y == c)[0]
+            if shuffle:
+                rng.shuffle(c_idx)
+            fold_of[c_idx] = np.arange(len(c_idx)) % k
+    else:
+        idx = np.arange(n)
+        if shuffle:
+            rng.shuffle(idx)
+        fold_of = np.empty(n, dtype=int)
+        fold_of[idx] = np.arange(n) % k
+
+    for f in range(k):
+        test_idx = np.where(fold_of == f)[0]
+        train_idx = np.where(fold_of != f)[0]
+        if len(test_idx) == 0 or len(train_idx) == 0:
+            continue
+        yield train_idx, test_idx
+
+
+def cross_val_score(model_factory, X, y, scorer, k=5, random_state=42,
+                    stratify=False, scale=True):
+    """k-fold CV score list.
+
+    model_factory: zero-arg callable returning a fresh unfitted model.
+    scorer:        f(y_true, y_pred) -> float
+    scale:         fit StandardScaler on the training fold only (fitting on
+                   all of X would leak test-fold mean/variance).
+    """
+    scores = []
+    for train_idx, test_idx in k_fold_indices(
+            y, k=k, random_state=random_state, stratify=stratify):
+        X_tr, X_te = X[train_idx], X[test_idx]
+        y_tr, y_te = y[train_idx], y[test_idx]
+
+        if scale:
+            sc = StandardScaler()
+            X_tr = sc.fit_transform(X_tr)
+            X_te = sc.transform(X_te)
+
+        model = model_factory()
+        model.fit(X_tr, y_tr)
+        scores.append(float(scorer(y_te, model.predict(X_te))))
+
+    return np.array(scores)
