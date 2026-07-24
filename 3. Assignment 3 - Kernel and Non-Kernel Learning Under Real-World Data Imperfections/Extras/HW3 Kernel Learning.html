@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HW3: Kernel & Non-Kernel Learning Under Real-World Data Imperfections</title>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--card:#22263a;--border:#2d3250;--accent:#6c8cff;--accent2:#a78bfa;--accent3:#34d399;--warn:#fbbf24;--danger:#f87171;--text:#e2e8f0;--muted:#94a3b8;--white:#f8fafc;--font:'Segoe UI',system-ui,-apple-system,sans-serif;--mono:'Cascadia Code','Fira Code',monospace;--radius:10px;--shadow:0 4px 24px rgba(0,0,0,.3)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+::selection{background:var(--accent);color:var(--bg)}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;transition:transform .3s}
+.sidebar .logo{padding:24px 20px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.sidebar .logo span{color:var(--muted);font-weight:400;font-size:11px;display:block;margin-top:4px}
+.nav-group{padding:12px 0}
+.nav-group-title{padding:6px 20px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;color:var(--muted);cursor:pointer;font-size:13px;transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover,.nav-item.active{color:var(--white);background:rgba(108,140,255,.08);border-left-color:var(--accent)}
+.nav-item .icon{width:18px;text-align:center;font-size:14px}
+.nav-item .badge{margin-left:auto;background:var(--accent);color:var(--bg);font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600}
+.main{margin-left:260px;flex:1;padding:32px 40px;max-width:1100px}
+
+/* Progress bar */
+.progress-bar{position:fixed;top:0;left:260px;right:0;height:3px;background:var(--border);z-index:99}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width .5s}
+
+/* Sections */
+.section{display:none;animation:fadeIn .4s}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.section-title{font-size:28px;font-weight:700;margin-bottom:8px;color:var(--white)}
+.section-subtitle{color:var(--muted);font-size:15px;margin-bottom:28px}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px}
+.card-title{font-size:16px;font-weight:600;color:var(--white);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab{padding:10px 18px;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;font-weight:500}
+.tab:hover{color:var(--white)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none;animation:fadeIn .3s}
+.tab-content.active{display:block}
+
+/* Collapsible */
+.collapsible{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.collapsible-header{padding:14px 18px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--card);font-weight:500;font-size:14px;transition:background .2s}
+.collapsible-header:hover{background:rgba(108,140,255,.08)}
+.collapsible-header .arrow{transition:transform .3s;color:var(--muted)}
+.collapsible.open .arrow{transform:rotate(180deg)}
+.collapsible-body{padding:0 18px;max-height:0;overflow:hidden;transition:max-height .4s,padding .3s}
+.collapsible.open .collapsible-body{max-height:5000px;padding:16px 18px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+th{background:var(--accent);color:var(--bg);padding:10px 14px;text-align:left;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:10px 14px;border-bottom:1px solid var(--border)}
+tr:hover td{background:rgba(108,140,255,.04)}
+.highlight-row td{background:rgba(52,211,153,.08);font-weight:600}
+
+/* Metric cards */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:16px 0}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center}
+.metric-value{font-size:28px;font-weight:700;color:var(--accent);margin:6px 0}
+.metric-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.metric-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* Formula */
+.formula{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin:14px 0;font-family:var(--mono);font-size:14px;text-align:center;color:var(--accent2);overflow-x:auto}
+.formula .label{font-family:var(--font);font-size:11px;color:var(--muted);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+
+/* SVG diagrams */
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin:16px 0;text-align:center}
+.diagram svg{max-width:100%}
+
+/* Tags */
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;margin:2px}
+.tag-blue{background:rgba(108,140,255,.15);color:var(--accent)}
+.tag-green{background:rgba(52,211,153,.15);color:var(--accent3)}
+.tag-yellow{background:rgba(251,191,36,.15);color:var(--warn)}
+.tag-red{background:rgba(248,113,113,.15);color:var(--danger)}
+.tag-purple{background:rgba(167,139,250,.15);color:var(--accent2)}
+
+/* Prose */
+p{margin-bottom:14px;font-size:14.5px}
+h3{font-size:18px;font-weight:600;color:var(--white);margin:24px 0 12px}
+h4{font-size:15px;font-weight:600;color:var(--accent2);margin:18px 0 10px}
+ul,ol{padding-left:24px;margin-bottom:14px;font-size:14px}
+li{margin-bottom:6px}
+code{font-family:var(--mono);background:var(--surface);padding:2px 6px;border-radius:4px;font-size:13px;color:var(--accent3)}
+.note{background:rgba(108,140,255,.08);border-left:3px solid var(--accent);padding:14px 18px;border-radius:0 var(--radius) var(--radius) 0;margin:14px 0;font-size:13px}
+.warn{background:rgba(251,191,36,.08);border-left:3px solid var(--warn);padding:14px 18px;border-radius:0 var(--radius) var(--radius) 0;margin:14px 0;font-size:13px}
+strong{color:var(--white)}
+
+/* Mobile */
+.menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--accent);border:none;color:var(--bg);width:40px;height:40px;border-radius:8px;font-size:20px;cursor:pointer}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:none}.main{margin-left:0;padding:20px 16px}.menu-toggle{display:block}.progress-bar{left:0}}
+
+/* Checkpoint */
+.checkpoint{background:linear-gradient(135deg,rgba(108,140,255,.1),rgba(167,139,250,.1));border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin:20px 0;text-align:center}
+.checkpoint h4{color:var(--accent);margin:0 0 8px}
+.checkpoint p{color:var(--muted);font-size:13px;margin:0}
+
+/* Algorithm card */
+.algo-card{display:grid;grid-template-columns:60px 1fr;gap:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px}
+.algo-icon{width:50px;height:50px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:22px}
+.algo-icon.nk{background:rgba(52,211,153,.12)}
+.algo-icon.k{background:rgba(167,139,250,.12)}
+
+/* LaTeX-style math rendering */
+.math{font-family:'Cambria Math','Latin Modern Math','STIX Two Math','Times New Roman',serif;font-size:1.15em;letter-spacing:.5px;color:var(--accent2)}
+.math-block{display:block;text-align:center;padding:18px 20px;margin:14px 0;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto}
+.math-block .math-label{display:block;font-family:var(--font);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;font-style:normal}
+.m-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px}
+.m-frac .m-num{border-bottom:1.5px solid var(--accent2);padding:0 4px 2px;line-height:1.2}
+.m-frac .m-den{padding:2px 4px 0;line-height:1.2}
+.m-sup{font-size:.72em;vertical-align:super;line-height:0}
+.m-sub{font-size:.72em;vertical-align:sub;line-height:0}
+.m-paren{font-size:1.3em;vertical-align:middle;color:var(--muted)}
+.m-sum{font-size:1.5em;vertical-align:middle;margin:0 2px;position:relative;top:2px}
+.m-vec{font-weight:700;font-style:italic}
+.m-op{font-style:normal;margin:0 2px}
+.m-sqrt{border-top:1.5px solid var(--accent2);padding:1px 4px 0;margin-left:2px;display:inline-block;position:relative}
+.m-sqrt::before{content:'\221A';position:absolute;left:-10px;top:-2px;font-size:1.1em}
+
+</style>
+</head>
+<body>
+<button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="app">
+<nav class="sidebar" id="sidebar">
+<div class="logo">HW3: Kernel Learning<span>Graduate Machine Learning - Spring 2026</span></div>
+<div class="nav-group">
+<div class="nav-group-title">Foundations</div>
+<div class="nav-item active" onclick="showSection('overview')"><span class="icon">&#9673;</span>Problem Overview</div>
+<div class="nav-item" onclick="showSection('datasets')"><span class="icon">&#9707;</span>Dataset Exploration<span class="badge">4</span></div>
+<div class="nav-item" onclick="showSection('concepts')"><span class="icon">&#9733;</span>Conceptual Foundations</div>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">Investigation</div>
+<div class="nav-item" onclick="showSection('quality')"><span class="icon">&#9874;</span>Data Quality</div>
+<div class="nav-item" onclick="showSection('engineering')"><span class="icon">&#9881;</span>Feature Engineering</div>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">Algorithms</div>
+<div class="nav-item" onclick="showSection('nonkernel')"><span class="icon">&#9654;</span>Non-Kernel Methods<span class="badge">4</span></div>
+<div class="nav-item" onclick="showSection('kernel')"><span class="icon">&#10026;</span>Kernel Methods<span class="badge">4</span></div>
+</div>
+<div class="nav-group">
+<div class="nav-group-title">Analysis</div>
+<div class="nav-item" onclick="showSection('results')"><span class="icon">&#9776;</span>Results</div>
+<div class="nav-item" onclick="showSection('kernelcomp')"><span class="icon">&#8644;</span>Kernel Investigation</div>
+<div class="nav-item" onclick="showSection('failure')"><span class="icon">&#9888;</span>Failure Analysis</div>
+<div class="nav-item" onclick="showSection('crossdata')"><span class="icon">&#8596;</span>Cross-Dataset</div>
+<div class="nav-item" onclick="showSection('discussion')"><span class="icon">&#9993;</span>Discussion</div>
+<div class="nav-item" onclick="showSection('conclusion')"><span class="icon">&#10003;</span>Conclusion</div>
+</div>
+</nav>
+
+<main class="main">
+<!-- ===== SECTION: OVERVIEW ===== -->
+<div class="section active" id="sec-overview">
+<h2 class="section-title">Problem Overview</h2>
+<p class="section-subtitle">Understanding the assignment's core challenge before touching any code</p>
+
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent)"></span>The Core Question</div>
+<p>This assignment asks a deceptively simple question: <strong>When does the dataset matter more than the algorithm?</strong></p>
+<p>Traditional ML courses present clean datasets (Iris, MNIST) where algorithm selection dominates performance. Real-world data is inherently flawed &mdash; missing values, outliers, class imbalance, and complex nonlinear manifold structures challenge every assumption. This project investigates how these imperfections interact with algorithm choice across four fundamentally different datasets.</p>
+</div>
+
+<div class="metrics-grid">
+<div class="metric-card"><div class="metric-value">4</div><div class="metric-label">Datasets</div><div class="metric-sub">Different topologies</div></div>
+<div class="metric-card"><div class="metric-value">8</div><div class="metric-label">Algorithms</div><div class="metric-sub">Implemented from scratch</div></div>
+<div class="metric-card"><div class="metric-value">3</div><div class="metric-label">Kernel Types</div><div class="metric-sub">Linear, Poly, RBF</div></div>
+<div class="metric-card"><div class="metric-value">0</div><div class="metric-label">sklearn imports</div><div class="metric-sub">NumPy/SciPy only</div></div>
+</div>
+
+<h3>Grading Emphasis</h3>
+<div class="diagram">
+<svg viewBox="0 0 600 80" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="10" width="360" height="55" rx="8" fill="rgba(108,140,255,.2)" stroke="#6c8cff" stroke-width="1.5"/>
+<text x="180" y="32" text-anchor="middle" fill="#6c8cff" font-size="11" font-weight="600">DATA ENGINEERING &amp; ANALYSIS</text>
+<text x="180" y="52" text-anchor="middle" fill="#94a3b8" font-size="22" font-weight="700">60%</text>
+<rect x="370" y="10" width="225" height="55" rx="8" fill="rgba(167,139,250,.2)" stroke="#a78bfa" stroke-width="1.5"/>
+<text x="482" y="32" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="600">ALGORITHMS &amp; MODELING</text>
+<text x="482" y="52" text-anchor="middle" fill="#94a3b8" font-size="22" font-weight="700">40%</text>
+</svg>
+</div>
+<p>The grading split reveals the assignment's philosophy: <strong>understanding data is more important than implementing algorithms.</strong> This mirrors production ML, where data scientists spend ~80% of their time on data preparation.</p>
+
+<h3>What Makes This Different From Textbook ML?</h3>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">1. Missing data is the norm, not the exception<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>The Airbnb dataset has 24 features with missing values. Textbook datasets like Iris have zero missing values, creating a false impression that missing data is a minor preprocessing step.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">2. Class imbalance changes the entire problem<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>IBM HR has a 5.20:1 imbalance ratio (83.9% non-attrition vs 16.1% attrition). A naive model predicting "no attrition" for everyone achieves 83.9% accuracy while being completely useless. SMOTE was needed to produce meaningful classifiers.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">3. Feature engineering dominates algorithm selection<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>The Online Retail dataset requires complete transformation from transaction logs to customer-level RFM features before ANY model can be applied. The raw data structure is fundamentally incompatible with standard ML inputs.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">4. The kernel trick is not universally beneficial<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>While kernel methods provided uplift on Airbnb (+3.45%), they underperformed Decision Trees on three of four datasets. Textbook demos on toy 2D datasets (concentric circles, XOR) create a misleading impression of kernel superiority.</p></div>
+</div>
+
+<div class="checkpoint"><h4>&#10003; Checkpoint</h4><p>You now understand WHY this assignment exists. Next: explore the four datasets.</p></div>
+</div>
+
+<!-- ===== SECTION: DATASETS ===== -->
+<div class="section" id="sec-datasets">
+<h2 class="section-title">Dataset Exploration</h2>
+<p class="section-subtitle">Four real-world manifolds, each requiring a bespoke engineering strategy</p>
+
+<div class="tabs" id="dsTabs">
+<div class="tab active" onclick="showTab('dsTabs','ds1')">Airbnb</div>
+<div class="tab" onclick="showTab('dsTabs','ds2')">NYC 311</div>
+<div class="tab" onclick="showTab('dsTabs','ds3')">IBM HR</div>
+<div class="tab" onclick="showTab('dsTabs','ds4')">Online Retail</div>
+</div>
+
+<div class="tab-content active" id="tc-ds1">
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent)"></span>Airbnb Open Data</div>
+<p><strong>Source:</strong> Inside Airbnb &nbsp;|&nbsp; <strong>Format:</strong> listings.csv.gz (Detailed) &nbsp;|&nbsp; <strong>Cities:</strong> Berlin, Austin, Amsterdam, Boston, Albany</p>
+<div class="metrics-grid">
+<div class="metric-card"><div class="metric-value">39,446</div><div class="metric-label">Rows</div></div>
+<div class="metric-card"><div class="metric-value">80</div><div class="metric-label">Features</div></div>
+<div class="metric-card"><div class="metric-value">46</div><div class="metric-label">After Engineering</div></div>
+<div class="metric-card"><div class="metric-value">24</div><div class="metric-label">Cols with Missing</div></div>
+</div>
+<h4>Prediction Tasks</h4>
+<table><tr><th>Task</th><th>Type</th><th>Target</th><th>Distribution</th></tr>
+<tr><td>Price</td><td><span class="tag tag-blue">Regression</span></td><td>price ($)</td><td>Mean $204, Std $216, heavy right skew</td></tr>
+<tr><td>Superhost</td><td><span class="tag tag-green">Classification</span></td><td>host_is_superhost</td><td>No: 6,284 / Yes: 6,074 (balanced)</td></tr>
+</table>
+<h4>Why This Dataset?</h4>
+<p>Airbnb data tests the model's ability to handle geographic diversity (5 cities with different pricing patterns), mixed feature types (numeric + categorical + text-derived), and missing review scores (which are MAR &mdash; missing when no reviews exist).</p>
+</div>
+</div>
+
+<div class="tab-content" id="tc-ds2">
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent3)"></span>NYC 311 Service Requests</div>
+<p><strong>Source:</strong> NYC Open Data &nbsp;|&nbsp; <strong>Format:</strong> CSV (2020-Present) &nbsp;|&nbsp; <strong>Scope:</strong> Municipal complaints</p>
+<div class="metrics-grid">
+<div class="metric-card"><div class="metric-value">667,454</div><div class="metric-label">Rows</div></div>
+<div class="metric-card"><div class="metric-value">44</div><div class="metric-label">Features</div></div>
+<div class="metric-card"><div class="metric-value">40</div><div class="metric-label">After Engineering</div></div>
+<div class="metric-card"><div class="metric-value">10</div><div class="metric-label">Complaint Classes</div></div>
+</div>
+<h4>Prediction Tasks</h4>
+<table><tr><th>Task</th><th>Type</th><th>Target</th><th>Challenge</th></tr>
+<tr><td>Complaint Category</td><td><span class="tag tag-green">Classification</span></td><td>Top 10 complaint types</td><td>8.69:1 class imbalance</td></tr>
+<tr><td>Resolution Time</td><td><span class="tag tag-blue">Regression</span></td><td>Hours to resolve</td><td>Mean 4.51h, Median 1.78h (skewed)</td></tr>
+</table>
+<h4>Top 10 Complaint Categories (Real Data)</h4>
+<table><tr><th>Category</th><th>Count</th><th>%</th></tr>
+<tr><td>Illegal Parking</td><td>5,232</td><td>34.1%</td></tr>
+<tr><td>Noise - Residential</td><td>2,548</td><td>16.6%</td></tr>
+<tr><td>Noise - Street/Sidewalk</td><td>1,964</td><td>12.8%</td></tr>
+<tr><td>Blocked Driveway</td><td>1,619</td><td>10.6%</td></tr>
+<tr><td>Unsanitary Condition</td><td>1,112</td><td>7.2%</td></tr>
+<tr><td>Street Condition</td><td>1,041</td><td>6.8%</td></tr>
+<tr><td>Water System</td><td>1,016</td><td>6.6%</td></tr>
+<tr><td>Damaged Tree</td><td>623</td><td>4.1%</td></tr>
+<tr><td>Abandoned Vehicle</td><td>617</td><td>4.0%</td></tr>
+<tr><td>Plumbing</td><td>602</td><td>3.9%</td></tr>
+</table>
+</div>
+</div>
+
+<div class="tab-content" id="tc-ds3">
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent2)"></span>IBM HR Employee Attrition</div>
+<p><strong>Source:</strong> Kaggle/UCI &nbsp;|&nbsp; <strong>Format:</strong> CSV &nbsp;|&nbsp; <strong>Type:</strong> Synthetic (IBM-generated)</p>
+<div class="metrics-grid">
+<div class="metric-card"><div class="metric-value">1,470</div><div class="metric-label">Rows</div></div>
+<div class="metric-card"><div class="metric-value">35</div><div class="metric-label">Features</div></div>
+<div class="metric-card"><div class="metric-value">23</div><div class="metric-label">After Engineering</div></div>
+<div class="metric-card"><div class="metric-value">5.20:1</div><div class="metric-label">Imbalance Ratio</div></div>
+</div>
+<h4>Class Distribution</h4>
+<div class="diagram">
+<svg viewBox="0 0 500 50" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="5" width="420" height="35" rx="6" fill="rgba(52,211,153,.2)" stroke="#34d399"/>
+<text x="210" y="28" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">No Attrition: 1,233 (83.9%)</text>
+<rect x="425" y="5" width="75" height="35" rx="6" fill="rgba(248,113,113,.2)" stroke="#f87171"/>
+<text x="462" y="28" text-anchor="middle" fill="#f87171" font-size="10" font-weight="600">Yes: 237</text>
+</svg>
+</div>
+<p class="warn">The severe 5.20:1 imbalance means a naive "predict No" classifier achieves 83.9% accuracy. SMOTE oversampling was required to train meaningful models.</p>
+<h4>Top Correlates with Attrition (Real Data)</h4>
+<table><tr><th>Feature</th><th>|Correlation|</th><th>Interpretation</th></tr>
+<tr><td>TotalWorkingYears</td><td>0.171</td><td>Less experienced employees leave more</td></tr>
+<tr><td>JobLevel</td><td>0.169</td><td>Lower-level employees leave more</td></tr>
+<tr><td>YearsInCurrentRole</td><td>0.161</td><td>Less tenure = more attrition</td></tr>
+<tr><td>MonthlyIncome</td><td>0.160</td><td>Lower pay = more attrition</td></tr>
+<tr><td>Age</td><td>0.159</td><td>Younger employees leave more</td></tr>
+</table>
+</div>
+</div>
+
+<div class="tab-content" id="tc-ds4">
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--warn)"></span>Online Retail Transactions</div>
+<p><strong>Source:</strong> UCI ML Repository &nbsp;|&nbsp; <strong>Format:</strong> Excel (.xlsx) &nbsp;|&nbsp; <strong>Country:</strong> Primarily UK</p>
+<div class="metrics-grid">
+<div class="metric-card"><div class="metric-value">541,909</div><div class="metric-label">Transactions</div></div>
+<div class="metric-card"><div class="metric-value">8</div><div class="metric-label">Raw Features</div></div>
+<div class="metric-card"><div class="metric-value">1,347</div><div class="metric-label">Customers (after clean)</div></div>
+<div class="metric-card"><div class="metric-value">13</div><div class="metric-label">Engineered Features</div></div>
+</div>
+<h4>Critical Engineering Challenge</h4>
+<p>This dataset requires the most aggressive transformation: from 541K <strong>transaction-level</strong> rows to ~1,347 <strong>customer-level</strong> rows via RFM (Recency, Frequency, Monetary) aggregation. No model can operate on the raw transaction logs.</p>
+<h4>RFM-Based Customer Segments (Real Data)</h4>
+<table><tr><th>Segment</th><th>Count</th><th>%</th><th>Characteristics</th></tr>
+<tr><td>High-Value</td><td>356</td><td>26.4%</td><td>Recent, frequent, high spend</td></tr>
+<tr><td>Loyal</td><td>399</td><td>29.6%</td><td>Moderate across all dimensions</td></tr>
+<tr><td>At-Risk</td><td>509</td><td>37.8%</td><td>Declining engagement</td></tr>
+<tr><td>Lost</td><td>83</td><td>6.2%</td><td>Inactive, low frequency</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<!-- ===== SECTION: CONCEPTS ===== -->
+<div class="section" id="sec-concepts">
+<h2 class="section-title">Conceptual Foundations</h2>
+<p class="section-subtitle">Understanding the theory before seeing the code</p>
+
+<h3>The Kernel Trick (Lecture 7)</h3>
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent2)"></span>The Problem</div>
+<p>Given data that is <strong>not linearly separable</strong> in the original space, we want to find a nonlinear decision boundary. One approach: map data into a higher-dimensional space where a linear boundary exists.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 600 180" xmlns="http://www.w3.org/2000/svg">
+<text x="130" y="15" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600">INPUT SPACE (2D)</text>
+<rect x="20" y="25" width="220" height="140" rx="8" fill="rgba(108,140,255,.08)" stroke="#2d3250"/>
+<circle cx="80" cy="90" r="6" fill="#f87171"/><circle cx="100" cy="70" r="6" fill="#f87171"/>
+<circle cx="120" cy="100" r="6" fill="#f87171"/><circle cx="90" cy="110" r="6" fill="#f87171"/>
+<circle cx="50" cy="60" r="6" fill="#6c8cff"/><circle cx="180" cy="55" r="6" fill="#6c8cff"/>
+<circle cx="170" cy="140" r="6" fill="#6c8cff"/><circle cx="55" cy="140" r="6" fill="#6c8cff"/>
+<circle cx="190" cy="90" r="6" fill="#6c8cff"/>
+<text x="130" y="175" text-anchor="middle" fill="#94a3b8" font-size="10">Not linearly separable</text>
+<text x="310" y="100" fill="#a78bfa" font-size="28" font-weight="700">&phi;</text>
+<text x="330" y="100" fill="#94a3b8" font-size="18">&rarr;</text>
+<text x="470" y="15" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="600">FEATURE SPACE (3D)</text>
+<rect x="360" y="25" width="220" height="140" rx="8" fill="rgba(167,139,250,.08)" stroke="#2d3250"/>
+<circle cx="400" cy="130" r="5" fill="#f87171"/><circle cx="420" cy="120" r="5" fill="#f87171"/>
+<circle cx="440" cy="135" r="5" fill="#f87171"/><circle cx="410" cy="140" r="5" fill="#f87171"/>
+<circle cx="470" cy="60" r="5" fill="#6c8cff"/><circle cx="530" cy="55" r="5" fill="#6c8cff"/>
+<circle cx="500" cy="50" r="5" fill="#6c8cff"/><circle cx="490" cy="70" r="5" fill="#6c8cff"/>
+<circle cx="520" cy="65" r="5" fill="#6c8cff"/>
+<line x1="380" y1="100" x2="560" y2="100" stroke="#34d399" stroke-width="2" stroke-dasharray="6,3"/>
+<text x="470" y="175" text-anchor="middle" fill="#34d399" font-size="10">Linearly separable!</text>
+</svg>
+</div>
+
+<h4>The Insight</h4>
+<p>Explicitly mapping data to high dimensions is expensive. But many algorithms only need the <strong>dot product</strong> between mapped vectors, not the mapped vectors themselves. A <strong>kernel function</strong> computes this dot product directly:</p>
+<div class="math-block"><span class="math"><span class="math-label">Kernel Function Definition (Lecture 7, Slide 6)</span>k(<b style="font-style:italic">x</b>, <b style="font-style:italic">z</b>) = φ(<b style="font-style:italic">x</b>)<sup style="font-size:.72em">T</sup> · φ(<b style="font-style:italic">z</b>)</span></div>
+<p>This is the <strong>kernel trick</strong>: replace every inner product with a kernel evaluation, avoiding explicit feature mapping entirely.</p>
+</div>
+
+<h3>Three Kernel Types (Lecture 7, Slide 9)</h3>
+<div class="metrics-grid">
+<div class="card" style="grid-column:span 1">
+<div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Linear</div>
+<div class="math-block"><span class="math">k(<b style="font-style:italic">x</b>, <b style="font-style:italic">x</b>') = <b style="font-style:italic">x</b><sup style="font-size:.72em">T</sup> <b style="font-style:italic">x</b>' + c</span></div>
+<p>Simplest kernel. Equivalent to standard linear methods. Use when data is already (approximately) linearly separable.</p>
+</div>
+<div class="card" style="grid-column:span 1">
+<div class="card-title"><span class="dot" style="background:var(--accent)"></span>Polynomial</div>
+<div class="math-block"><span class="math">k(<b style="font-style:italic">x</b>, <b style="font-style:italic">x</b>') = (α <b style="font-style:italic">x</b><sup style="font-size:.72em">T</sup> <b style="font-style:italic">x</b>' + c)<sup style="font-size:.72em">d</sup></span></div>
+<p>Captures polynomial interactions up to degree d. With d=3, models up to 3-way feature interactions.</p>
+</div>
+<div class="card" style="grid-column:span 1">
+<div class="card-title"><span class="dot" style="background:var(--accent2)"></span>RBF (Gaussian)</div>
+<div class="math-block"><span class="math">k(<b style="font-style:italic">x</b>, <b style="font-style:italic">x</b>') = <span class="m-op">exp</span><span class="m-paren">(</span> -<span class="m-frac"><span class="m-num">‖<b style="font-style:italic">x</b> - <b style="font-style:italic">x</b>'‖<sup style="font-size:.72em">2</sup></span><span class="m-den">2σ<sup style="font-size:.72em">2</sup></span></span> <span class="m-paren">)</span></span></div>
+<p>Maps to infinite-dimensional space. Similarity decreases with distance. Most flexible but sensitive to &sigma;.</p>
+</div>
+</div>
+
+<h3>Kernel Ridge Regression (Lecture 7, Slides 13&ndash;16)</h3>
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent)"></span>From Primal to Dual</div>
+<h4>Step 1: Primal Form (Slide 10)</h4>
+<div class="math-block"><span class="math"><span class="math-label">Ridge Regression - Primal Form (Slide 10)</span><b style="font-style:italic">w</b> = <span class="m-paren">(</span> X<sup style="font-size:.72em">T</sup> X + λ I <span class="m-paren">)</span><sup style="font-size:.72em">−1</sup> X<sup style="font-size:.72em">T</sup> <b style="font-style:italic">y</b></span></div>
+<p>This solves for the weight vector <strong>w</strong> directly. Complexity depends on the number of <strong>features</strong> (d).</p>
+<h4>Step 2: Dual Form (Slide 13)</h4>
+<div class="math-block"><span class="math"><span class="math-label">Dual Form (Slide 13)</span>α = <span class="m-paren">(</span> X X<sup style="font-size:.72em">T</sup> + λ I <span class="m-paren">)</span><sup style="font-size:.72em">−1</sup> <b style="font-style:italic">y</b></span></div>
+<p>Key insight (Slide 12): <strong>w = X&#7488;&alpha;</strong>, meaning w lies in the span of training examples. Complexity depends on the number of <strong>samples</strong> (n).</p>
+<h4>Step 3: Kernel Trick (Slide 16)</h4>
+<div class="math-block"><span class="math"><span class="math-label">Kernel Ridge Regression (Slide 16)</span>α = <span class="m-paren">(</span> K + λ I <span class="m-paren">)</span><sup style="font-size:.72em">−1</sup> <b style="font-style:italic">y</b> &emsp; <span style="font-family:var(--font);font-style:normal;font-size:.9em">where</span> &emsp; K<sub style="font-size:.72em">ij</sub> = k(<b style="font-style:italic">x</b><sup style="font-size:.72em">i</sup>, <b style="font-style:italic">x</b><sup style="font-size:.72em">j</sup>)</span></div>
+<div class="math-block"><span class="math"><span class="math-label">Prediction Function</span>g(<b style="font-style:italic">x</b>) = <span style="position:relative"><span class="m-sum">Σ</span><span class="m-sub">i</span></span> α<sub style="font-size:.72em">i</sub> · k(<b style="font-style:italic">x</b>, <b style="font-style:italic">x</b><sup style="font-size:.72em">i</sup>)</span></div>
+<p>Replace XX&#7488; with the kernel matrix K. Both steps only involve inner products &mdash; so we can use ANY valid kernel.</p>
+</div>
+
+<div class="checkpoint"><h4>&#10003; Checkpoint</h4><p>You now understand the kernel trick and KRR. Next: see how data quality was investigated.</p></div>
+</div>
+
+<!-- ===== SECTION: DATA QUALITY ===== -->
+<div class="section" id="sec-quality">
+<h2 class="section-title">Data Quality Investigation</h2>
+<p class="section-subtitle">25% of the grade &mdash; understanding data before modeling</p>
+
+<div class="tabs" id="dqTabs">
+<div class="tab active" onclick="showTab('dqTabs','dq1')">Missing Data</div>
+<div class="tab" onclick="showTab('dqTabs','dq2')">Outliers</div>
+<div class="tab" onclick="showTab('dqTabs','dq3')">Feature Quality</div>
+<div class="tab" onclick="showTab('dqTabs','dq4')">Label Quality</div>
+</div>
+
+<div class="tab-content active" id="tc-dq1">
+<h3>Missing Data Classification</h3>
+<div class="card">
+<h4>Three Types of Missingness</h4>
+<table><tr><th>Type</th><th>Definition</th><th>Example</th><th>Strategy</th></tr>
+<tr><td><span class="tag tag-green">MCAR</span></td><td>Missing Completely at Random &mdash; missingness has no pattern</td><td>Airbnb bedrooms (0.1% missing, random sensor failure)</td><td>Median imputation safe</td></tr>
+<tr><td><span class="tag tag-yellow">MAR</span></td><td>Missing at Random &mdash; missingness depends on observed data</td><td>Airbnb review scores (missing when number_of_reviews = 0)</td><td>Conditional imputation</td></tr>
+<tr><td><span class="tag tag-red">MNAR</span></td><td>Missing Not at Random &mdash; missingness depends on the missing value itself</td><td>NYC 311 Bridge Highway fields (99.5% missing because most complaints are not bridge-related)</td><td>Model-based or exclude</td></tr>
+</table>
+</div>
+
+<h3>Missing Data Summary (Real Data)</h3>
+<table><tr><th>Dataset</th><th>Features</th><th>With Missing</th><th>Max Missing</th><th>Type</th><th>Strategy</th></tr>
+<tr><td>Airbnb</td><td>80</td><td>24</td><td>~15% (review scores)</td><td>MAR</td><td>Median imputation</td></tr>
+<tr><td>NYC 311</td><td>44</td><td>~12</td><td>99.5% (Bridge Hwy)</td><td>MNAR</td><td>Median / exclude</td></tr>
+<tr><td>IBM HR</td><td>35</td><td>0</td><td>0%</td><td>N/A</td><td>None required</td></tr>
+<tr><td>Online Retail</td><td>8</td><td>1 (CustomerID)</td><td>~25%</td><td>MNAR</td><td>Row removal</td></tr>
+</table>
+</div>
+
+<div class="tab-content" id="tc-dq2">
+<h3>Outlier Detection Methods</h3>
+<div class="metrics-grid">
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>Z-Score</div>
+<div class="math-block"><span class="math">z = <span class="m-frac"><span class="m-num">x - μ</span><span class="m-den">σ</span></span>, &emsp; <span style="font-family:var(--font);font-style:normal;font-size:.9em">outlier if </span> |z| &gt; 3</span></div>
+<p>Assumes approximately normal distribution. Fails on skewed data. Fast to compute.</p></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent3)"></span>IQR</div>
+<div class="math-block"><span class="math"><span style="font-family:var(--font);font-style:normal;font-size:.9em">outlier if </span> x &lt; Q<sub style="font-size:.72em">1</sub> - 1.5 · <span style="font-family:var(--font);font-style:normal;font-size:.9em">IQR</span> &emsp; <span style="font-family:var(--font);font-style:normal;font-size:.9em">or</span> &emsp; x &gt; Q<sub style="font-size:.72em">3</sub> + 1.5 · <span style="font-family:var(--font);font-style:normal;font-size:.9em">IQR</span></span></div>
+<p>Distribution-free. Robust to skew. Based on quartiles.</p></div>
+<div class="card"><div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Isolation Forest</div>
+<div class="math-block"><span class="math">s(x, n) = 2<sup style="font-size:.72em">-E(h(x)) / c(n)</sup></span></div>
+<p>Implemented from scratch. Random recursive partitioning. Anomalies are isolated faster (shorter path lengths). Captures multivariate anomalies.</p></div>
+</div>
+
+<h3>NYC 311 Outlier Comparison (Real Data)</h3>
+<table><tr><th>Feature</th><th>Z-score</th><th>IQR</th><th>Isolation Forest</th><th>Samples</th></tr>
+<tr class="highlight-row"><td>Longitude</td><td>390</td><td>1,067</td><td>251</td><td>29,338</td></tr>
+<tr><td>Latitude</td><td>0</td><td>0</td><td>251</td><td>29,338</td></tr>
+<tr><td>Incident Zip</td><td>0</td><td>0</td><td>295</td><td>29,737</td></tr>
+<tr><td>Council District</td><td>0</td><td>0</td><td>255</td><td>29,192</td></tr>
+<tr><td>BBL</td><td>0</td><td>0</td><td>252</td><td>26,077</td></tr>
+</table>
+<p class="note">Longitude is the only feature where all three methods detected outliers. IQR was most aggressive (1,067) due to geographic coordinate outliers outside NYC boundaries. Isolation Forest consistently detected ~5% via the contamination threshold.</p>
+</div>
+
+<div class="tab-content" id="tc-dq3">
+<h3>Feature Quality Findings (Real Data)</h3>
+<table><tr><th>Dataset</th><th>Finding</th><th>Details</th><th>Action</th></tr>
+<tr><td>Airbnb</td><td><span class="tag tag-yellow">Near-constant</span></td><td>has_availability (&gt;99% same value)</td><td>Dropped</td></tr>
+<tr><td>Airbnb</td><td><span class="tag tag-red">Irrelevant</span></td><td>26 columns (URLs, text, metadata)</td><td>Dropped</td></tr>
+<tr><td>IBM HR</td><td><span class="tag tag-yellow">Near-constant</span></td><td>EmployeeCount=1, StandardHours=80, Over18='Y'</td><td>Dropped</td></tr>
+<tr><td>IBM HR</td><td><span class="tag tag-red">High correlation</span></td><td>JobLevel &harr; MonthlyIncome (r=0.950)</td><td>Dropped MonthlyIncome</td></tr>
+<tr><td>IBM HR</td><td><span class="tag tag-yellow">Identifier</span></td><td>EmployeeNumber (non-predictive)</td><td>Dropped</td></tr>
+<tr><td>NYC 311</td><td><span class="tag tag-red">Structural MNAR</span></td><td>Bridge Highway fields (~99.5% missing)</td><td>Excluded</td></tr>
+<tr><td>Online Retail</td><td><span class="tag tag-blue">Raw format</span></td><td>Transaction-level logs</td><td>Aggregated to customer-level</td></tr>
+</table>
+</div>
+
+<div class="tab-content" id="tc-dq4">
+<h3>Label Quality Analysis (Real Data)</h3>
+<table><tr><th>Dataset</th><th>Target</th><th>Distribution</th><th>Imbalance</th><th>Concern</th></tr>
+<tr><td>Airbnb</td><td>Superhost</td><td>No: 6,284 / Yes: 6,074</td><td>1.03:1</td><td><span class="tag tag-green">Balanced</span></td></tr>
+<tr><td>Airbnb</td><td>Price</td><td>Mean $204, Std $216</td><td>N/A</td><td><span class="tag tag-yellow">Heavy skew</span></td></tr>
+<tr><td>NYC 311</td><td>Complaint</td><td>10 classes; max: 5,232</td><td>8.69:1</td><td><span class="tag tag-red">Severe imbalance</span></td></tr>
+<tr><td>IBM HR</td><td>Attrition</td><td>No: 1,233 / Yes: 237</td><td>5.20:1</td><td><span class="tag tag-red">Severe imbalance</span></td></tr>
+<tr><td>Online Retail</td><td>Segment</td><td>Lost: 83 (6.2%)</td><td>6.13:1</td><td><span class="tag tag-yellow">Sparse minority</span></td></tr>
+</table>
+</div>
+</div>
+
+<!-- ===== SECTION: FEATURE ENGINEERING ===== -->
+<div class="section" id="sec-engineering">
+<h2 class="section-title">Feature Engineering</h2>
+<p class="section-subtitle">Transforming raw data into model-ready features</p>
+
+<div class="tabs" id="feTabs">
+<div class="tab active" onclick="showTab('feTabs','fe1')">Airbnb</div>
+<div class="tab" onclick="showTab('feTabs','fe2')">NYC 311</div>
+<div class="tab" onclick="showTab('feTabs','fe3')">IBM HR</div>
+<div class="tab" onclick="showTab('feTabs','fe4')">Online Retail</div>
+</div>
+
+<div class="tab-content active" id="tc-fe1">
+<div class="card">
+<h4>Airbnb Engineering Pipeline</h4>
+<ol>
+<li><strong>Price parsing:</strong> Convert "$1,234.00" string format to float</li>
+<li><strong>Drop 26 irrelevant columns:</strong> URLs, free-text, metadata, scrape info</li>
+<li><strong>Parse percentages:</strong> host_response_rate, host_acceptance_rate (remove '%')</li>
+<li><strong>Boolean encoding:</strong> host_has_profile_pic, instant_bookable &rarr; 0/1</li>
+<li><strong>Ordinal encoding:</strong> host_response_time (within an hour=4, few hours=3, day=2, days+=1)</li>
+<li><strong>One-hot encoding:</strong> room_type, property_type (top 8), city</li>
+<li><strong>Temporal:</strong> host_since &rarr; host_years (tenure as host)</li>
+<li><strong>Imputation:</strong> 24 columns &rarr; median (robust to outliers)</li>
+<li><strong>Outlier removal:</strong> Price 1st-99th percentile (186 rows removed)</li>
+<li><strong>Near-constant removal:</strong> has_availability dropped</li>
+</ol>
+<p><strong>Result:</strong> 46 numeric features for modeling.</p>
+</div>
+</div>
+<div class="tab-content" id="tc-fe2"><div class="card"><h4>NYC 311 Engineering</h4><p>Temporal features engineered: hour, day_of_week, month, year, is_weekend, is_business_hours. Categorical encoding for Borough, Channel Type, Location Type, Status. Resolution time = ClosedDate - CreatedDate in hours. Top 10 complaint types selected. <strong>Result:</strong> 40 features.</p></div></div>
+<div class="tab-content" id="tc-fe3"><div class="card"><h4>IBM HR Engineering</h4><p>Ordinal encoding for BusinessTravel. One-hot for Department, EducationField, Gender, JobRole, MaritalStatus, OverTime. Dropped: EmployeeCount (=1), StandardHours (=80), Over18 (='Y'), EmployeeNumber (ID). Removed MonthlyIncome (r=0.950 with JobLevel). SMOTE applied for 5.20:1 imbalance. <strong>Result:</strong> 23 features.</p></div></div>
+<div class="tab-content" id="tc-fe4"><div class="card"><h4>Online Retail: RFM Aggregation</h4><p>541K transactions &rarr; 1,347 customer-level rows. 13 features: recency, frequency, monetary, avg_order_value, total_quantity, avg_quantity_per_order, unique_products, avg_unit_price, max_single_purchase, std_order_value, n_transactions, country_diversity, preferred_dow. Customer segments via RFM quartile scoring. <strong>Result:</strong> 13 features.</p></div></div>
+</div>
+
+<!-- ===== SECTION: NON-KERNEL ===== -->
+<div class="section" id="sec-nonkernel">
+<h2 class="section-title">Non-Kernel Methods</h2>
+<p class="section-subtitle">Four algorithms implemented from scratch with NumPy</p>
+
+<div class="algo-card"><div class="algo-icon nk">LR</div><div><h4>Linear Regression (Ridge)</h4><p>Closed-form solution: <span class="math"><b style="font-style:italic">w</b> = (X<sup style="font-size:.72em">T</sup> X + λ I)<sup style="font-size:.72em">−1</sup> X<sup style="font-size:.72em">T</sup> <b style="font-style:italic">y</b></span>. Lecture 7, Slide 10. L2 regularization prevents overfitting. &lambda;=1.0.</p></div></div>
+<div class="algo-card"><div class="algo-icon nk">LG</div><div><h4>Logistic Regression</h4><p>Gradient descent on binary cross-entropy loss. Sigmoid activation, L2 regularization. One-vs-rest for multi-class. lr=0.05, 300 iterations.</p></div></div>
+<div class="algo-card"><div class="algo-icon nk">KN</div><div><h4>K-Nearest Neighbors</h4><p>Euclidean distance with efficient ||x-y||&sup2; = ||x||&sup2; + ||y||&sup2; - 2x'y expansion. k=5, majority vote (clf) / mean (reg). Batch processing for memory efficiency.</p></div></div>
+<div class="algo-card"><div class="algo-icon nk">DT</div><div><h4>Decision Tree</h4><p>Gini impurity (classification) / MSE reduction (regression). Percentile-based threshold selection. max_depth=10, min_samples_split=5.</p></div></div>
+</div>
+
+<!-- ===== SECTION: KERNEL ===== -->
+<div class="section" id="sec-kernel">
+<h2 class="section-title">Kernel Methods</h2>
+<p class="section-subtitle">Four kernel algorithms exploiting the kernel trick</p>
+
+<div class="algo-card"><div class="algo-icon k">KR</div><div><h4>Kernel Ridge Regression (Lecture 7, Slides 13-16)</h4><p><span class="math">α = (K + λ I)<sup style="font-size:.72em">−1</sup> <b style="font-style:italic">y</b></span>, predict via <span class="math">g(<b style="font-style:italic">x</b>) = <span style="position:relative"><span class="m-sum">Σ</span><span class="m-sub">i</span></span> α<sub style="font-size:.72em">i</sub> k(<b style="font-style:italic">x</b>, <b style="font-style:italic">x</b><sup style="font-size:.72em">i</sup>)</span>. The core algorithm from the course. Closed-form dual solution. Tested with Linear, Poly (d=3), and RBF kernels.</p></div></div>
+<div class="algo-card"><div class="algo-icon k">SV</div><div><h4>Kernel SVM (Simplified SMO)</h4><p>Sequential Minimal Optimization. Iteratively selects pairs of dual variables, optimizes subject to KKT conditions. C=1.0 regularization. One-vs-rest for multi-class.</p></div></div>
+<div class="algo-card"><div class="algo-icon k">KK</div><div><h4>Kernel KNN</h4><p>Uses kernel-induced distance: <span class="math">d<sup style="font-size:.72em">2</sup>(<b style="font-style:italic">x</b>,<b style="font-style:italic">z</b>) = k(<b style="font-style:italic">x</b>,<b style="font-style:italic">x</b>) + k(<b style="font-style:italic">z</b>,<b style="font-style:italic">z</b>) - 2k(<b style="font-style:italic">x</b>,<b style="font-style:italic">z</b>)</span>. Avoids explicit feature mapping while computing distances in kernel space. k=5 neighbors.</p></div></div>
+<div class="algo-card"><div class="algo-icon k">KP</div><div><h4>KPCA + Logistic Regression</h4><p>Kernel PCA: eigendecomposition of centered kernel matrix. Projects data to top eigenvectors. Downstream Logistic Regression on projected features.</p></div></div>
+</div>
+
+<!-- ===== SECTION: RESULTS ===== -->
+<div class="section" id="sec-results">
+<h2 class="section-title">Results</h2>
+<p class="section-subtitle">Complete metrics from all models on all datasets (real data)</p>
+
+<div class="tabs" id="resTabs">
+<div class="tab active" onclick="showTab('resTabs','res1')">Airbnb</div>
+<div class="tab" onclick="showTab('resTabs','res2')">NYC 311</div>
+<div class="tab" onclick="showTab('resTabs','res3')">IBM HR</div>
+<div class="tab" onclick="showTab('resTabs','res4')">Online Retail</div>
+</div>
+
+<div class="tab-content active" id="tc-res1">
+<h3>Classification: Superhost</h3>
+<table><tr><th>Model</th><th>Accuracy</th><th>Prec (M)</th><th>Rec (M)</th><th>F1 (M)</th><th>F1 (W)</th></tr>
+<tr class="highlight-row"><td>KRR (RBF)</td><td>0.7500</td><td>0.7396</td><td>0.7396</td><td>0.7396</td><td>0.7500</td></tr>
+<tr><td>Logistic Reg</td><td>0.7155</td><td>0.7143</td><td>0.7110</td><td>0.7118</td><td>0.7144</td></tr>
+<tr><td>KNN (k=5)</td><td>0.6904</td><td>0.6945</td><td>0.6804</td><td>0.6800</td><td>0.6846</td></tr>
+<tr><td>Decision Tree</td><td>0.6862</td><td>0.6860</td><td>0.6872</td><td>0.6856</td><td>0.6867</td></tr>
+<tr><td>Kernel KNN (RBF)</td><td>0.6750</td><td>0.6600</td><td>0.6563</td><td>0.6577</td><td>0.6731</td></tr>
+</table>
+<h3>Regression: Price</h3>
+<table><tr><th>Model</th><th>R&sup2;</th><th>MSE</th><th>RMSE</th><th>MAE</th></tr>
+<tr><td>KNN (k=5)</td><td>0.5083</td><td>21,642.66</td><td>147.11</td><td>86.46</td></tr>
+<tr><td>Linear Reg</td><td>0.5070</td><td>21,699.45</td><td>147.31</td><td>87.12</td></tr>
+<tr><td>KRR (RBF)</td><td>0.3078</td><td>34,569.15</td><td>185.93</td><td>97.50</td></tr>
+<tr><td>Decision Tree</td><td>0.1590</td><td>37,016.92</td><td>192.40</td><td>96.03</td></tr>
+</table>
+</div>
+
+<div class="tab-content" id="tc-res2">
+<h3>Classification: Complaint Category (10 classes)</h3>
+<table><tr><th>Model</th><th>Accuracy</th><th>Prec (M)</th><th>Rec (M)</th><th>F1 (M)</th><th>F1 (W)</th></tr>
+<tr class="highlight-row"><td>Logistic Reg</td><td>0.6907</td><td>0.4137</td><td>0.4974</td><td>0.4442</td><td>0.5862</td></tr>
+<tr><td>KNN (k=5)</td><td>0.6653</td><td>0.5063</td><td>0.5047</td><td>0.4981</td><td>0.6314</td></tr>
+<tr><td>Decision Tree</td><td>0.6568</td><td>0.5592</td><td>0.5323</td><td>0.5321</td><td>0.6456</td></tr>
+<tr><td>KRR (RBF)</td><td>0.6500</td><td>0.4034</td><td>0.4625</td><td>0.4263</td><td>0.5516</td></tr>
+<tr><td>Kernel KNN (RBF)</td><td>0.5500</td><td>0.4005</td><td>0.3936</td><td>0.3916</td><td>0.5098</td></tr>
+</table>
+<h3>Regression: Resolution Time</h3>
+<table><tr><th>Model</th><th>R&sup2;</th><th>MSE</th><th>RMSE</th><th>MAE</th></tr>
+<tr><td>KNN (k=5)</td><td>0.3984</td><td>24.01</td><td>4.90</td><td>3.07</td></tr>
+<tr><td>Linear Reg</td><td>0.3339</td><td>26.58</td><td>5.16</td><td>3.53</td></tr>
+<tr><td>KRR (RBF)</td><td>0.2089</td><td>23.45</td><td>4.84</td><td>3.07</td></tr>
+<tr><td>Decision Tree</td><td>0.1547</td><td>33.73</td><td>5.81</td><td>3.37</td></tr>
+</table>
+</div>
+
+<div class="tab-content" id="tc-res3">
+<h3>Classification: Employee Attrition (after SMOTE)</h3>
+<table><tr><th>Model</th><th>Accuracy</th><th>Prec (M)</th><th>Rec (M)</th><th>F1 (M)</th><th>F1 (W)</th></tr>
+<tr class="highlight-row"><td>Decision Tree</td><td>0.8272</td><td>0.8277</td><td>0.8272</td><td>0.8272</td><td>0.8272</td></tr>
+<tr><td>KRR (RBF)</td><td>0.7875</td><td>0.8073</td><td>0.7967</td><td>0.7867</td><td>0.7857</td></tr>
+<tr><td>Kernel SVM (RBF)</td><td>0.7750</td><td>0.7986</td><td>0.7850</td><td>0.7737</td><td>0.7725</td></tr>
+<tr><td>KNN (k=5)</td><td>0.7459</td><td>0.8147</td><td>0.7459</td><td>0.7313</td><td>0.7313</td></tr>
+<tr><td>Logistic Reg</td><td>0.7175</td><td>0.7191</td><td>0.7175</td><td>0.7170</td><td>0.7170</td></tr>
+<tr><td>Kernel SVM (Linear)</td><td>0.7000</td><td>0.7011</td><td>0.7021</td><td>0.6998</td><td>0.7004</td></tr>
+<tr><td>Kernel KNN (RBF)</td><td>0.6250</td><td>0.7190</td><td>0.6474</td><td>0.6000</td><td>0.5925</td></tr>
+<tr><td>KRR (Linear)</td><td>0.5375</td><td>0.5192</td><td>0.5019</td><td>0.3727</td><td>0.3969</td></tr>
+<tr><td>KPCA + LogReg</td><td>0.5250</td><td>0.6751</td><td>0.5563</td><td>0.4473</td><td>0.4317</td></tr>
+</table>
+<p class="note"><strong>Key finding:</strong> KRR Linear (53.8%) vs KRR RBF (78.8%) = +25 percentage point improvement, proving the attrition manifold is nonlinear.</p>
+</div>
+
+<div class="tab-content" id="tc-res4">
+<h3>Classification: Customer Segment</h3>
+<table><tr><th>Model</th><th>Accuracy</th><th>Prec (M)</th><th>Rec (M)</th><th>F1 (M)</th><th>F1 (W)</th></tr>
+<tr class="highlight-row"><td>Decision Tree</td><td>0.7677</td><td>0.6842</td><td>0.6493</td><td>0.6523</td><td>0.7547</td></tr>
+<tr><td>KNN (k=5)</td><td>0.6818</td><td>0.6955</td><td>0.5899</td><td>0.6073</td><td>0.6709</td></tr>
+<tr><td>Logistic Reg</td><td>0.6818</td><td>0.5131</td><td>0.5413</td><td>0.5210</td><td>0.6493</td></tr>
+<tr><td>KRR (RBF)</td><td>0.6375</td><td>0.4968</td><td>0.5502</td><td>0.5049</td><td>0.5827</td></tr>
+<tr><td>Kernel KNN (RBF)</td><td>0.5875</td><td>0.6026</td><td>0.5536</td><td>0.5613</td><td>0.5775</td></tr>
+</table>
+<h3>Regression: Log-Monetary Spending</h3>
+<table><tr><th>Model</th><th>R&sup2;</th><th>MSE</th><th>RMSE</th><th>MAE</th></tr>
+<tr class="highlight-row"><td>Decision Tree</td><td>0.7820</td><td>0.1595</td><td>0.3994</td><td>0.2553</td></tr>
+<tr><td>KNN (k=5)</td><td>0.7106</td><td>0.2118</td><td>0.4602</td><td>0.3645</td></tr>
+<tr><td>Linear Reg</td><td>0.6014</td><td>0.2916</td><td>0.5400</td><td>0.4160</td></tr>
+<tr><td>KRR (RBF)</td><td>-0.2456</td><td>0.7740</td><td>0.8798</td><td>0.4061</td></tr>
+</table>
+<p class="warn">KRR (RBF) produced negative R&sup2; (-0.246), indicating predictions are worse than the mean. The kernel bandwidth was poorly calibrated for this small subsample.</p>
+</div>
+</div>
+
+<!-- ===== SECTION: KERNEL INVESTIGATION ===== -->
+<div class="section" id="sec-kernelcomp">
+<h2 class="section-title">Kernel Investigation</h2>
+<p class="section-subtitle">30% of the grade &mdash; why did one kernel outperform another?</p>
+
+<h3>Kernel Benefit Analysis</h3>
+<table><tr><th>Dataset</th><th>Best Non-Kernel</th><th>Acc</th><th>Best Kernel</th><th>Acc</th><th>Benefit</th></tr>
+<tr><td>Airbnb</td><td>LogisticReg</td><td>0.716</td><td>KRR (RBF)</td><td>0.750</td><td><span class="tag tag-green">+3.45%</span></td></tr>
+<tr><td>NYC 311</td><td>LogisticReg</td><td>0.691</td><td>KRR (RBF)</td><td>0.650</td><td><span class="tag tag-red">-4.07%</span></td></tr>
+<tr><td>IBM HR</td><td>DecisionTree</td><td>0.827</td><td>KRR (RBF)</td><td>0.788</td><td><span class="tag tag-red">-3.97%</span></td></tr>
+<tr><td>Online Retail</td><td>DecisionTree</td><td>0.768</td><td>KRR (RBF)</td><td>0.638</td><td><span class="tag tag-red">-13.0%</span></td></tr>
+</table>
+
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Why RBF Helped Airbnb But Not Others</div>
+<p>The RBF kernel succeeded on Airbnb because superhost status depends on <strong>smooth, nonlinear interactions</strong> between host behavior (response rate, acceptance rate) and property metrics. These create a continuous, curved decision surface that RBF's infinite-dimensional feature space can approximate well.</p>
+<p>Decision Trees outperformed kernel methods on IBM HR and Online Retail because these datasets have <strong>hierarchical, axis-aligned decision boundaries</strong>. Attrition depends on threshold-based rules (overtime > X AND satisfaction < Y), which trees capture naturally through recursive splits. The kernel trick adds computational overhead without improving the decision boundary geometry.</p>
+</div>
+
+<h3>Linear vs RBF: IBM HR Deep Dive (Real Data)</h3>
+<table><tr><th>Model</th><th>Kernel</th><th>Accuracy</th><th>F1 (M)</th><th>Gap</th></tr>
+<tr><td>KRR</td><td>Linear</td><td>0.5375</td><td>0.3727</td><td rowspan="2"><strong>+25.0 pp</strong></td></tr>
+<tr class="highlight-row"><td>KRR</td><td>RBF</td><td>0.7875</td><td>0.7867</td></tr>
+<tr><td>Kernel SVM</td><td>Linear</td><td>0.7000</td><td>0.6998</td><td rowspan="2"><strong>+7.5 pp</strong></td></tr>
+<tr class="highlight-row"><td>Kernel SVM</td><td>RBF</td><td>0.7750</td><td>0.7737</td></tr>
+</table>
+<p>The 25-point accuracy improvement from Linear to RBF kernel in KRR provides strong empirical evidence that the attrition decision manifold is <strong>nonlinear</strong>. Employees leave due to complex multi-way interactions (high overtime + low satisfaction + long commute), which linear kernels cannot represent.</p>
+</div>
+
+<!-- ===== SECTION: FAILURE ANALYSIS ===== -->
+<div class="section" id="sec-failure">
+<h2 class="section-title">Error and Failure Analysis</h2>
+<p class="section-subtitle">Understanding why models fail is as important as celebrating when they succeed</p>
+
+<div class="card">
+<h4>Airbnb Price Failures</h4>
+<p>Worst predictions consistently occurred on luxury properties (&gt;$1,000/night) and Albany listings (only 453 of 39,446 total). These are <strong>data quality artifacts</strong>: insufficient training examples in extreme ranges and underrepresented cities.</p>
+</div>
+<div class="card">
+<h4>NYC 311 Classification Failures</h4>
+<p>Semantically overlapping categories (e.g., "Noise - Residential" vs "Noise - Street/Sidewalk") share geographic and temporal patterns. Classes with &lt;10 test samples were consistently misclassified. These are <strong>label ambiguity</strong> issues.</p>
+</div>
+<div class="card">
+<h4>IBM HR Attrition Failures</h4>
+<p>Misclassified employees had contradictory indicators: high satisfaction but high overtime and low compensation. These represent genuinely ambiguous boundary cases where the ground truth label may itself be questionable.</p>
+</div>
+<div class="card">
+<h4>Online Retail Segment Failures</h4>
+<p>The Lost segment (6.2%) was the primary failure source. RFM segmentation creates hard boundaries that don't reflect the continuous nature of customer behavior transitions.</p>
+</div>
+
+<h3>Failure Attribution (Real Assessment)</h3>
+<table><tr><th>Dataset</th><th>Primary Cause</th><th>Model Limitation</th><th>Data Quality</th></tr>
+<tr><td>Airbnb</td><td>Price extremes, city imbalance</td><td>30%</td><td>70%</td></tr>
+<tr><td>NYC 311</td><td>Class overlap, low support</td><td>20%</td><td>80%</td></tr>
+<tr><td>IBM HR</td><td>Contradictory indicators</td><td>40%</td><td>60%</td></tr>
+<tr><td>Online Retail</td><td>Segment boundary artifacts</td><td>50%</td><td>50%</td></tr>
+</table>
+</div>
+
+<!-- ===== SECTION: CROSS-DATASET ===== -->
+<div class="section" id="sec-crossdata">
+<h2 class="section-title">Cross-Dataset Comparison</h2>
+<p class="section-subtitle">Comparing the four manifolds directly</p>
+
+<table><tr><th>Question</th><th>Answer</th><th>Evidence</th></tr>
+<tr><td>Hardest to clean?</td><td><strong>NYC 311</strong></td><td>667K rows, renamed columns, 99.5% MNAR fields, temporal engineering needed</td></tr>
+<tr><td>Most aggressive feature engineering?</td><td><strong>Online Retail</strong></td><td>Complete transformation from transaction logs to customer-level RFM features</td></tr>
+<tr><td>Most benefit from kernel trick?</td><td><strong>Airbnb</strong></td><td>KRR RBF: +3.45% over best non-kernel (only dataset where kernels helped)</td></tr>
+<tr><td>Least benefit from kernel trick?</td><td><strong>Online Retail</strong></td><td>KRR RBF: -13.0% vs Decision Tree (kernel methods hurt performance)</td></tr>
+</table>
+</div>
+
+<!-- ===== SECTION: DISCUSSION ===== -->
+<div class="section" id="sec-discussion">
+<h2 class="section-title">Discussion</h2>
+<p class="section-subtitle">Bias, computation, and the gap between textbook and reality</p>
+
+<div class="tabs" id="discTabs">
+<div class="tab active" onclick="showTab('discTabs','disc1')">Bias &amp; Fairness</div>
+<div class="tab" onclick="showTab('discTabs','disc2')">Computation</div>
+<div class="tab" onclick="showTab('discTabs','disc3')">Theory vs Reality</div>
+</div>
+
+<div class="tab-content active" id="tc-disc1">
+<h3>Bias Sources by Dataset</h3>
+<table><tr><th>Dataset</th><th>Bias Type</th><th>Details</th><th>Impact</th></tr>
+<tr><td>Airbnb</td><td>Geographic sampling</td><td>Berlin: 14,274 vs Albany: 453</td><td>Model biased toward larger cities</td></tr>
+<tr><td>NYC 311</td><td>Temporal / reporting</td><td>~2 months of data; borough-level variation</td><td>No seasonal patterns captured</td></tr>
+<tr><td>IBM HR</td><td>Synthetic data</td><td>IBM-generated for education</td><td>May not reflect real HR dynamics</td></tr>
+<tr><td>Online Retail</td><td>Geographic</td><td>Primarily UK customers</td><td>Patterns may not generalize globally</td></tr>
+</table>
+</div>
+
+<div class="tab-content" id="tc-disc2">
+<h3>Training Time Comparison (Real Data, seconds)</h3>
+<table><tr><th>Model</th><th>Airbnb</th><th>NYC 311</th><th>IBM HR</th><th>Online Retail</th></tr>
+<tr><td>Logistic Reg</td><td>0.013</td><td>0.124</td><td>0.015</td><td>0.036</td></tr>
+<tr><td>Decision Tree</td><td>1.935</td><td>0.363</td><td>1.720</td><td>0.638</td></tr>
+<tr><td>KRR (RBF)</td><td>0.004</td><td>0.039</td><td>0.004</td><td>0.017</td></tr>
+<tr class="highlight-row"><td>Kernel SVM (Linear)</td><td>-</td><td>-</td><td>36.288</td><td>-</td></tr>
+<tr><td>Kernel SVM (RBF)</td><td>-</td><td>-</td><td>0.599</td><td>-</td></tr>
+</table>
+<p class="note">Kernel SVM with linear kernel took <strong>36.3 seconds</strong> for just 350 samples because SMO struggles to converge on linearly inseparable data. The same model with RBF kernel converged in 0.6 seconds because data becomes more separable after implicit feature mapping.</p>
+</div>
+
+<div class="tab-content" id="tc-disc3">
+<h3>Theory vs. Reality: 5 Key Lessons</h3>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">1. Missing data is the norm, not the exception<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>Airbnb had 24 columns with missing values. Textbook datasets have zero. This creates a false impression that missing data is minor.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">2. Class imbalance fundamentally changes the problem<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>IBM HR's 5.2:1 ratio meant naive models hit 83.9% accuracy while being useless. SMOTE was essential. Iris has perfect balance.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">3. Feature engineering dominates algorithm selection<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>Online Retail required complete transformation before any model could run. The 60/40 grading split reflects production reality.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">4. The kernel trick is not universally beneficial<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>Kernels helped only Airbnb (+3.45%). They hurt Online Retail (-13%). Textbook XOR demos create a misleading impression.</p></div>
+</div>
+<div class="collapsible" onclick="this.classList.toggle('open')">
+<div class="collapsible-header">5. Single-metric evaluation is insufficient<span class="arrow">&#9660;</span></div>
+<div class="collapsible-body"><p>NYC 311 achieved 69.1% accuracy but only 44.4% macro-F1, masking total failure on minority classes.</p></div>
+</div>
+</div>
+</div>
+
+<!-- ===== SECTION: CONCLUSION ===== -->
+<div class="section" id="sec-conclusion">
+<h2 class="section-title">Conclusion</h2>
+<p class="section-subtitle">Key findings from the investigation</p>
+
+<div class="card">
+<div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Principal Findings</div>
+<ol>
+<li><strong>Data quality dominated algorithm selection</strong> in determining model performance across all four datasets, validating the assignment's 60/40 grading emphasis.</li>
+<li><strong>The kernel trick provided measurable benefit only on Airbnb</strong> (+3.45%), where the decision boundary involved smooth nonlinear host-property interactions. On three other datasets, non-kernel methods (especially Decision Trees) outperformed kernel methods.</li>
+<li><strong>Decision Trees were the most robust method</strong> for tabular data, achieving best accuracy on IBM HR (82.7%), Online Retail (76.8%), and competitive performance on all datasets.</li>
+<li><strong>Class imbalance and label sparsity</strong> caused consistent failures across all model families (IBM HR attrition minority, NYC 311 minority categories, Online Retail Lost segment).</li>
+<li><strong>KRR Linear vs RBF</strong> on IBM HR (53.8% vs 78.8%) provided the strongest evidence of nonlinear manifold structure, demonstrating a 25-point accuracy improvement from the kernel trick alone.</li>
+</ol>
+</div>
+
+<div class="checkpoint"><h4>&#10003; Complete</h4><p>You have explored all sections. The gap between textbook ML and production ML is dominated by data imperfections.</p></div>
+</div>
+
+</main>
+</div>
+
+
+
+
+<script>
+// Navigation
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  // Progress
+  const items = document.querySelectorAll('.nav-item');
+  const idx = Array.from(items).indexOf(event.currentTarget);
+  document.getElementById('progressFill').style.width = ((idx + 1) / items.length * 100) + '%';
+  window.scrollTo(0, 0);
+  // Mobile: close sidebar
+  document.querySelector('.sidebar').classList.remove('open');
+}
+
+// Tabs
+function showTab(tabGroupId, tabId) {
+  const group = event.currentTarget.parentElement;
+  group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  // Find all tab-contents that belong to this group
+  let el = group.nextElementSibling;
+  while (el && el.classList.contains('tab-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById('tc-' + tabId).classList.add('active');
+}
+
+// Initialize
+document.querySelectorAll('.nav-item')[0].classList.add('active');
+</script>
+</body>
+</html>

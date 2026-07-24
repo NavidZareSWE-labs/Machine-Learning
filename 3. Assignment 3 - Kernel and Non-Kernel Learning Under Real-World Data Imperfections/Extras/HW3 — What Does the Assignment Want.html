@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HW3 Assignment Breakdown — What Does It Want?</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f14;--bg2:#131921;--bg3:#1a2233;--bg4:#222e3f;
+  --tx:#d1d5db;--tx2:#8b95a5;--tx3:#5c6575;
+  --accent:#d4a44a;--accent2:#b8892f;--blue:#5b9cf5;--green:#42b983;
+  --red:#e85d5d;--purple:#a78bfa;--cyan:#67d5e8;
+  --radius:10px;--sidebar-w:256px;
+  --f-body:"Segoe UI",-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+  --f-mono:"Cascadia Code","Fira Code","SF Mono",Consolas,monospace;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{background:var(--bg);color:var(--tx);font-family:var(--f-body);line-height:1.75;display:flex;min-height:100vh}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;
+  background:var(--bg2);border-right:1px solid var(--bg4);
+  overflow-y:auto;z-index:100;display:flex;flex-direction:column;
+}
+.sidebar-head{padding:20px 18px 14px;border-bottom:1px solid var(--bg4)}
+.sidebar-head h2{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:6px}
+.sidebar-head .bar{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.sidebar-head .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));border-radius:3px;transition:width .5s}
+.sidebar-head .bar-label{font-size:.68rem;color:var(--tx3);margin-top:4px;text-align:right}
+.sidebar nav{flex:1;padding:10px 0;overflow-y:auto}
+.sidebar nav a{
+  display:flex;align-items:center;gap:9px;padding:8px 18px;
+  color:var(--tx2);text-decoration:none;font-size:.8rem;
+  border-left:2px solid transparent;transition:all .15s;line-height:1.4;
+}
+.sidebar nav a:hover{color:var(--tx);background:var(--bg3)}
+.sidebar nav a.active{color:var(--accent);border-left-color:var(--accent);background:rgba(212,164,74,.06)}
+.sidebar nav a .dot{
+  width:13px;height:13px;border-radius:50%;border:1.5px solid var(--tx3);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:8px;transition:all .25s;
+}
+.sidebar nav a .dot.done{border-color:var(--green);background:var(--green);color:#fff}
+.sidebar .btm{padding:10px 14px;border-top:1px solid var(--bg4)}
+.sidebar .btm a{
+  display:block;text-align:center;padding:8px;background:var(--bg4);
+  border-radius:var(--radius);color:var(--tx2);text-decoration:none;
+  font-size:.76rem;transition:all .15s;
+}
+.sidebar .btm a:hover{background:var(--accent);color:var(--bg)}
+
+/* ===== MAIN ===== */
+.main{margin-left:var(--sidebar-w);flex:1;max-width:840px;padding:44px 52px 140px}
+
+/* ===== TYPE ===== */
+h1{font-size:2.1rem;color:var(--accent);font-weight:800;line-height:1.2;margin-bottom:6px;letter-spacing:-.02em}
+.subtitle{color:var(--tx2);font-size:1rem;margin-bottom:10px}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:36px}
+.tag{font-size:.7rem;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:.03em}
+.tag.gold{background:rgba(212,164,74,.15);color:var(--accent)}
+.tag.blue{background:rgba(91,156,245,.12);color:var(--blue)}
+.tag.green{background:rgba(66,185,131,.12);color:var(--green)}
+
+h2{font-size:1.4rem;color:var(--tx);margin:52px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--bg4);font-weight:700}
+h2 .sec-tag{font-size:.68rem;color:var(--accent);font-weight:600;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:2px}
+h3{font-size:1.05rem;color:var(--blue);margin:28px 0 10px;font-weight:600}
+h4{font-size:.92rem;color:var(--purple);margin:18px 0 8px;font-weight:600}
+p{margin-bottom:13px}
+strong{color:var(--tx);font-weight:600}
+em{color:var(--accent);font-style:normal}
+
+/* ===== CALLOUTS ===== */
+.callout{
+  border-radius:var(--radius);padding:16px 20px;margin:18px 0;
+  border-left:3px solid var(--blue);background:var(--bg2);
+}
+.callout.warn{border-left-color:var(--accent)}
+.callout.success{border-left-color:var(--green)}
+.callout.danger{border-left-color:var(--red)}
+.callout .c-label{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+.callout .c-label{color:var(--blue)}
+.callout.warn .c-label{color:var(--accent)}
+.callout.success .c-label{color:var(--green)}
+.callout.danger .c-label{color:var(--red)}
+
+/* ===== DETAILS ===== */
+details{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);margin:16px 0;overflow:hidden}
+details summary{
+  cursor:pointer;padding:13px 18px;font-weight:600;font-size:.88rem;
+  color:var(--tx);list-style:none;display:flex;align-items:center;gap:8px;
+  transition:background .15s;user-select:none;
+}
+details summary:hover{background:var(--bg3)}
+details summary::before{content:"▸";color:var(--accent);font-size:.75rem;transition:transform .2s}
+details[open] summary::before{transform:rotate(90deg)}
+details .inner{padding:16px 18px;border-top:1px solid var(--bg4)}
+
+/* ===== TABLES ===== */
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.86rem}
+th{background:var(--bg3);color:var(--accent);padding:9px 14px;text-align:left;font-weight:600;border-bottom:2px solid var(--bg4);font-size:.8rem;letter-spacing:.02em}
+td{padding:9px 14px;border-bottom:1px solid var(--bg4);vertical-align:top}
+tr:nth-child(even) td{background:rgba(26,34,51,.4)}
+
+/* ===== GRADE DONUT ===== */
+.grade-wrap{display:flex;gap:32px;align-items:center;flex-wrap:wrap;margin:20px 0}
+.grade-wrap canvas{flex-shrink:0}
+.grade-list{font-size:.88rem;line-height:2}
+.grade-list .g-item{display:flex;align-items:center;gap:8px}
+.grade-list .g-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* ===== CARDS ===== */
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.card{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:16px 18px;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card .c-num{font-size:.68rem;color:var(--accent);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+.card .c-title{font-size:.95rem;font-weight:700;color:var(--tx);margin-bottom:6px}
+.card .c-body{font-size:.82rem;color:var(--tx2);line-height:1.55}
+.card .c-targets{margin-top:8px;font-size:.78rem}
+.card .c-targets span{display:inline-block;padding:2px 8px;border-radius:12px;margin:2px 4px 2px 0;font-weight:600}
+.card .c-targets .cls{background:rgba(91,156,245,.12);color:var(--blue)}
+.card .c-targets .reg{background:rgba(167,139,250,.12);color:var(--purple)}
+
+/* ===== CHECKLIST ===== */
+.chk{
+  display:flex;align-items:center;gap:10px;margin:14px 0 22px;
+  padding:11px 16px;background:var(--bg2);border-radius:var(--radius);
+  border:1px solid var(--bg4);cursor:pointer;user-select:none;transition:border-color .2s;
+}
+.chk:hover{border-color:var(--accent)}
+.chk input[type=checkbox]{width:17px;height:17px;accent-color:var(--green);cursor:pointer;flex-shrink:0}
+.chk label{cursor:pointer;font-size:.86rem;color:var(--tx2)}
+.chk input:checked+label{color:var(--green);text-decoration:line-through;text-decoration-color:var(--tx3)}
+
+/* ===== FLOW STEPS ===== */
+.flow{margin:16px 0}
+.flow-step{display:flex;gap:14px;margin:10px 0;padding:12px 16px;background:var(--bg2);border-radius:var(--radius);border-left:3px solid var(--purple)}
+.flow-num{background:var(--purple);color:#fff;min-width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
+.flow-body{flex:1;font-size:.88rem}
+
+/* ===== SVG DIAGRAMS ===== */
+.diagram{background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:22px;margin:20px 0;overflow-x:auto}
+.diagram svg{display:block;margin:0 auto}
+.diagram-cap{text-align:center;font-size:.76rem;color:var(--tx3);margin-top:10px}
+
+/* ===== REPORT STRUCTURE ===== */
+.report-sec{display:flex;align-items:stretch;gap:0;margin:6px 0}
+.report-num{
+  width:36px;min-height:44px;background:var(--bg3);display:flex;align-items:center;
+  justify-content:center;font-size:.78rem;font-weight:700;color:var(--accent);
+  border-radius:var(--radius) 0 0 var(--radius);border:1px solid var(--bg4);border-right:0;
+}
+.report-body{
+  flex:1;padding:10px 16px;background:var(--bg2);
+  border-radius:0 var(--radius) var(--radius) 0;border:1px solid var(--bg4);border-left:0;
+  font-size:.86rem;
+}
+.report-body strong{color:var(--tx)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .sidebar{display:none}
+  .main{margin-left:0;padding:24px 18px 80px}
+  .card-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-head">
+    <h2>Assignment Guide</h2>
+    <div class="bar"><div class="bar-fill" id="pFill" style="width:0%"></div></div>
+    <div class="bar-label" id="pLabel">0 / 12</div>
+  </div>
+  <nav id="sNav"></nav>
+  <div class="btm"><a href="#top">↑ Back to Top</a></div>
+</aside>
+
+<!-- MAIN -->
+<div class="main" id="top">
+
+<!-- ================================================================ -->
+<!-- TITLE -->
+<!-- ================================================================ -->
+<h1>HW3 — What Does the Assignment Want?</h1>
+<p class="subtitle">A plain-English breakdown of every requirement, grading weight, and deliverable.</p>
+<div class="tag-row">
+  <span class="tag gold">Graduate ML — Spring 2026</span>
+  <span class="tag blue">Dr. Hashemi · TA: Ali Eskandarian</span>
+  <span class="tag green">20–35 page report</span>
+</div>
+
+<!-- ================================================================ -->
+<!-- SEC 1: THE BIG PICTURE -->
+<!-- ================================================================ -->
+<section id="s-big-picture">
+<h2><span class="sec-tag">Start Here</span>The Big Picture</h2>
+
+<p>This assignment is <strong>not</strong> a typical "implement an algorithm and report accuracy" homework. The very first paragraph of the PDF says it plainly:</p>
+
+<div class="callout warn">
+<div class="c-label">Assignment's Own Words</div>
+<p>"This assignment represents a <strong>paradigm shift</strong> from traditional algorithmic implementation. While you will build models from scratch, the primary challenge is not the code itself, but rather understanding <strong>when the dataset matters more than the algorithm</strong>."</p>
+</div>
+
+<p>In other words: the code is only 40% of your grade. The other <strong>60% is about understanding your data</strong> — investigating its flaws, explaining why models fail, and connecting your findings to theory.</p>
+
+<h3>The Grading Split</h3>
+<div class="grade-wrap">
+  <canvas id="donut" width="160" height="160"></canvas>
+  <div class="grade-list">
+    <div class="g-item"><div class="g-dot" style="background:var(--accent)"></div> <strong>25%</strong> — Data Quality Investigation (Section 2)</div>
+    <div class="g-item"><div class="g-dot" style="background:var(--blue)"></div> <strong>15%</strong> — Algorithmic Implementation (Section 3)</div>
+    <div class="g-item"><div class="g-dot" style="background:var(--purple)"></div> <strong>30%</strong> — Kernel Investigation (Section 4)</div>
+    <div class="g-item"><div class="g-dot" style="background:var(--green)"></div> <strong>30%</strong> — Research Discussion (Section 5)</div>
+  </div>
+</div>
+
+<p>Notice that <em>building the models</em> is the smallest slice at 15%. The three analysis sections (25% + 30% + 30% = 85%) dominate your grade. The message is clear: <strong>think more, code less</strong>.</p>
+
+<h3>What You Must Deliver</h3>
+<p>Your final submission has two parts:</p>
+
+<div class="flow">
+<div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>A 20–35 page Mini-Conference Paper (DOCX or PDF)</strong> — structured like an academic paper with 9 specific sections (listed below). This is your primary graded document.</div></div>
+<div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>A zipped code appendix</strong> — your fully commented, object-oriented Python scripts. The TA will read your code, but the paper is what earns the grade.</div></div>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c0" data-s="s-big-picture">
+  <label for="c0">I understand: 60% analysis / 40% code. The report is the primary deliverable.</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 2: THE FOUR DATASETS -->
+<!-- ================================================================ -->
+<section id="s-datasets">
+<h2><span class="sec-tag">Section 1 of the PDF</span>The Four Datasets</h2>
+
+<p>You must work with <strong>all four</strong> datasets. Each one is intentionally different — the assignment says "you cannot apply a universal pipeline; each requires a bespoke data engineering strategy." Here is what each dataset involves:</p>
+
+<div class="card-grid">
+
+<div class="card">
+  <div class="c-num">Dataset 1</div>
+  <div class="c-title">Airbnb Open Data</div>
+  <div class="c-body">Listings from Inside Airbnb. Includes host info, property details, reviews, pricing. Features are a messy mix of text, numbers, booleans, and URLs.</div>
+  <div class="c-targets">
+    <span class="reg">Regression: Price</span>
+    <span class="cls">Classification: Superhost</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="c-num">Dataset 2</div>
+  <div class="c-title">NYC 311 Service Requests</div>
+  <div class="c-body">Millions of civic complaints (noise, plumbing, etc.). You must sample intelligently, resolve duplicates, and engineer temporal features (time-of-day, day-of-week).</div>
+  <div class="c-targets">
+    <span class="cls">Classification: Complaint Type</span>
+    <span class="reg">Regression: Resolution Time</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="c-num">Dataset 3</div>
+  <div class="c-title">IBM HR Attrition</div>
+  <div class="c-body">Employee records with demographics, satisfaction scores, job history. The target (attrition) is imbalanced — roughly 16% leave. You must handle this imbalance (SMOTE, undersampling).</div>
+  <div class="c-targets">
+    <span class="cls">Classification: Attrition (Yes/No)</span>
+  </div>
+</div>
+
+<div class="card">
+  <div class="c-num">Dataset 4</div>
+  <div class="c-title">Online Retail</div>
+  <div class="c-body">Half a million raw transactions (invoices, items, quantities). You must <strong>aggregate</strong> to customer-level features (Recency, Frequency, Monetary) before modeling.</div>
+  <div class="c-targets">
+    <span class="cls">Classification: Customer Segment</span>
+    <span class="reg">Regression: Future Spending</span>
+  </div>
+</div>
+
+</div>
+
+<details>
+<summary>What "bespoke engineering" means for each dataset</summary>
+<div class="inner">
+<table>
+<tr><th>Dataset</th><th>What the PDF Specifically Requires</th></tr>
+<tr><td><strong>Airbnb</strong></td><td>Justify missing value imputation strategies. Explain criteria for dropping features. Defend outlier handling methodology.</td></tr>
+<tr><td><strong>NYC 311</strong></td><td>Sample to maintain distribution integrity. Resolve duplicate reports. Engineer meaningful temporal features.</td></tr>
+<tr><td><strong>IBM HR</strong></td><td>Investigate root drivers of attrition. Apply rigorous feature selection. Implement SMOTE or undersampling for class imbalance.</td></tr>
+<tr><td><strong>Online Retail</strong></td><td>Transition from raw transactional logs to aggregated, customer-level behavioral features (RFM) before modeling.</td></tr>
+</table>
+</div>
+</details>
+
+<div class="callout">
+<div class="c-label">Key Insight</div>
+<p>The assignment uses the word "manifold" to describe each dataset — it views them as fundamentally different geometric shapes in feature space. This is foreshadowing the kernel investigation: different data geometries favor different kernels.</p>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c1" data-s="s-datasets">
+  <label for="c1">I know all 4 datasets, their prediction targets, and their unique engineering requirements</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 3: DATA QUALITY (25%) -->
+<!-- ================================================================ -->
+<section id="s-quality">
+<h2><span class="sec-tag">Section 2 of the PDF — 25% of Grade</span>Data Quality Investigation</h2>
+
+<p>Before training a single model, you must investigate <strong>four dimensions</strong> of data quality for <em>each</em> dataset. The PDF requires you to "conduct and document a rigorous data quality investigation."</p>
+
+<h3>The Four Required Investigations</h3>
+
+<div class="flow">
+<div class="flow-step"><div class="flow-num">A</div><div class="flow-body">
+<strong>Missing Data Analysis</strong><br>
+You must categorize missingness as MCAR, MAR, or MNAR — and <em>prove</em> it. Then defend your imputation math (why median? why mean? why drop?).
+</div></div>
+<div class="flow-step"><div class="flow-num">B</div><div class="flow-body">
+<strong>Outlier Analysis</strong><br>
+Compare three specific methods: <em>Z-score</em>, <em>IQR</em>, and <em>Isolation Forest</em>. Show how they differ on your data. Which one flags the most? Why?
+</div></div>
+<div class="flow-step"><div class="flow-num">C</div><div class="flow-body">
+<strong>Feature Quality Analysis</strong><br>
+Find redundant features (highly correlated pairs), data leakage (features that "cheat"), and near-constant features (no useful information).
+</div></div>
+<div class="flow-step"><div class="flow-num">D</div><div class="flow-body">
+<strong>Label Quality Analysis</strong><br>
+Document potential annotation errors, ambiguous ground truths, and historical bias in the labels themselves.
+</div></div>
+</div>
+
+<details>
+<summary>What MCAR, MAR, MNAR actually mean</summary>
+<div class="inner">
+<table>
+<tr><th>Type</th><th>Plain English</th><th>How to Detect</th></tr>
+<tr><td><strong>MCAR</strong></td><td>Missingness is totally random — like coin flips deciding which cells are blank</td><td>Little's MCAR test; check if missingness correlates with any observed variable</td></tr>
+<tr><td><strong>MAR</strong></td><td>Missingness depends on <em>other</em> observed columns (e.g., younger respondents leave income blank more often)</td><td>Show that missingness in column A correlates with values in column B</td></tr>
+<tr><td><strong>MNAR</strong></td><td>Missingness depends on the <em>missing value itself</em> (e.g., high earners refuse to report income)</td><td>Cannot be proven from data alone — requires domain reasoning</td></tr>
+</table>
+</div>
+</details>
+
+<div class="callout danger">
+<div class="c-label">Common Mistake</div>
+<p>Many students skip this section or write a single paragraph. It is worth <strong>25% of your entire grade</strong> — as much as the kernel investigation. Give it proportional effort: tables, figures, heatmaps, statistical tests.</p>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c2" data-s="s-quality">
+  <label for="c2">I understand all 4 quality investigations: missing data, outliers, feature quality, label quality</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 4: ALGORITHMS (15%) -->
+<!-- ================================================================ -->
+<section id="s-algos">
+<h2><span class="sec-tag">Section 3 of the PDF — 15% of Grade</span>Algorithmic Implementation</h2>
+
+<p>You must implement <strong>eight models from scratch</strong> using only NumPy and SciPy. No scikit-learn. No machine learning libraries. Every core algorithm must be your own code.</p>
+
+<h3>The Eight Required Models</h3>
+
+<table>
+<tr><th colspan="2">Non-Kernel Methods</th></tr>
+<tr><td><strong>Logistic Regression</strong></td><td>Classification via sigmoid + gradient descent. Extend to multiclass with one-vs-rest.</td></tr>
+<tr><td><strong>Linear Regression</strong></td><td>Ridge regression: w = (XᵀX + λI)⁻¹Xᵀy. Closed-form solution.</td></tr>
+<tr><td><strong>K-Nearest Neighbors</strong></td><td>Euclidean distance, k neighbors, majority vote (classification) or mean (regression).</td></tr>
+<tr><td><strong>Decision Tree</strong></td><td>CART algorithm with Gini impurity (classification) or MSE (regression).</td></tr>
+</table>
+
+<table>
+<tr><th colspan="2">Kernel Methods</th></tr>
+<tr><td><strong>Kernel SVM</strong></td><td>Maximum-margin classifier in kernel space. Implement via SMO algorithm.</td></tr>
+<tr><td><strong>Kernel Ridge Regression</strong></td><td>Dual form: α = (K + λI)⁻¹y. This is the lecture's main algorithm.</td></tr>
+<tr><td><strong>Kernel KNN</strong></td><td>Replace Euclidean distance with kernel-induced distance.</td></tr>
+<tr><td><strong>KPCA + Classifier</strong></td><td>Kernel PCA for nonlinear dimensionality reduction, then a standard classifier on top.</td></tr>
+</table>
+
+<div class="callout warn">
+<div class="c-label">Constraint Reminder</div>
+<p>You must run all eight models on <em>all four datasets</em>, on <em>both</em> classification and regression tasks (where applicable). That is up to 8 models × 4 datasets × 2 tasks = potentially 64 experiment runs.</p>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c3" data-s="s-algos">
+  <label for="c3">I know all 8 models, their categories (kernel vs non-kernel), and the NumPy-only constraint</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 5: KERNEL INVESTIGATION (30%) -->
+<!-- ================================================================ -->
+<section id="s-kernel">
+<h2><span class="sec-tag">Section 4 of the PDF — 30% of Grade</span>Kernel Investigation</h2>
+
+<p>This is the <strong>highest-weighted single section</strong> (tied with Discussion at 30%). Simply reporting numbers will get you zero credit here. The PDF is explicit about this:</p>
+
+<div class="callout danger">
+<div class="c-label">Prohibited vs Expected — Directly from the PDF</div>
+<p><strong>Prohibited:</strong> "The RBF kernel got 92% accuracy, which is the best."</p>
+<p><strong>Expected:</strong> "The RBF kernel succeeded because the transformed feature space better captured the nonlinear, localized interactions created by the geographic coordinates and temporal variables in Dataset 2."</p>
+</div>
+
+<h3>What "Mathematical Justification" Means</h3>
+<p>For each dataset, you need to explain <em>why</em> a specific kernel worked or failed by connecting three things:</p>
+
+<div class="flow">
+<div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>Data Properties</strong> — What shape is the data? Continuous or categorical? Linear or curved boundaries? High or low dimensional?</div></div>
+<div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>Kernel Properties</strong> — RBF captures <em>local</em> similarity (nearby = similar). Polynomial captures <em>global</em> interactions (feature combinations). Linear assumes separability.</div></div>
+<div class="flow-step"><div class="flow-num">3</div><div class="flow-body"><strong>Why They Match or Mismatch</strong> — Connect 1 and 2. "The data has curved class boundaries (1) and RBF captures local curvature (2), so RBF outperforms Linear."</div></div>
+</div>
+
+<details>
+<summary>Example justification template you can adapt</summary>
+<div class="inner">
+<p>"On the [Dataset Name] dataset, the [Kernel] kernel achieved [metric] = [value], outperforming [other kernel] by [margin]. This result is consistent with the data's [specific property — e.g., 'heavy-tailed price distribution', 'geographic coordinate features', 'binary-encoded categoricals']. The [Kernel] kernel's [mathematical property — e.g., 'localized Gaussian decay', 'polynomial feature interactions', 'linear inner product'] naturally captures [the specific pattern — e.g., 'diminishing returns of bedrooms on price', 'spatial clustering of complaint types']. In contrast, the [other kernel] failed because [specific mismatch — e.g., 'its global polynomial expansion amplified noisy categorical features']."</p>
+</div>
+</details>
+
+<div class="chk">
+  <input type="checkbox" id="c4" data-s="s-kernel">
+  <label for="c4">I know what "mathematical justification" means: connect data properties → kernel properties → outcome</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 6: RESEARCH DISCUSSION (30%) -->
+<!-- ================================================================ -->
+<section id="s-discussion">
+<h2><span class="sec-tag">Section 5 of the PDF — 30% of Grade</span>Research-Level Discussion</h2>
+
+<p>This section requires five distinct discussion essays. Each tests a different analytical skill. Let's break them down one by one.</p>
+
+<h3>Discussion A: Cross-Dataset Comparison</h3>
+<p>Compare all four datasets directly. The PDF asks you to identify:</p>
+<ul style="margin:0 0 14px 24px;color:var(--tx2);font-size:.9rem">
+<li>Which dataset was the <strong>hardest to clean</strong></li>
+<li>Which required the most <strong>aggressive feature engineering</strong></li>
+<li>Which <strong>benefited the most</strong> from the kernel trick</li>
+<li>Which <strong>benefited the least</strong> from the kernel trick</li>
+</ul>
+
+<h3>Discussion B: Failure Analysis</h3>
+<p>For <strong>every</strong> dataset, find your model's <em>10 worst predictions</em>. Then explain exactly <strong>why</strong> the model failed on those specific instances. Was it a model limitation (wrong inductive bias) or a data quality artifact (outlier, mislabeled, missing data)?</p>
+
+<h3>Discussion C: Bias and Fairness</h3>
+<p>Investigate <em>sampling bias</em>, <em>temporal drift</em>, and <em>geographic bias</em> in each dataset. Example: Airbnb data from Albany, NY cannot generalize to other cities. The IBM HR dataset may encode proxy discrimination.</p>
+
+<h3>Discussion D: Computational Analysis</h3>
+<p>Compare training time and memory usage. The PDF specifically mentions "the O(n²) and O(n³) complexities inherent in generating and inverting kernel matrices." You must discuss why kernel methods become impractical on large datasets.</p>
+
+<h3>Discussion E: Theory vs. Reality</h3>
+<p>The PDF poses a specific question you must answer with evidence from your experiments:</p>
+
+<div class="callout">
+<div class="c-label">The Question</div>
+<p>"Why do textbook datasets (like Iris or standard MNIST) consistently overestimate model performance and fail to prepare engineers for production machine learning?"</p>
+</div>
+
+<p>Your answer must use <em>specific evidence</em> from your four datasets — not generic statements.</p>
+
+<div class="chk">
+  <input type="checkbox" id="c5" data-s="s-discussion">
+  <label for="c5">I understand all 5 discussions: cross-dataset, failure analysis, bias, computation, theory vs. reality</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 7: REPORT STRUCTURE -->
+<!-- ================================================================ -->
+<section id="s-report">
+<h2><span class="sec-tag">Section 6 of the PDF</span>Report Structure — The 9 Required Sections</h2>
+
+<p>Your submission must follow a specific 9-section structure. The PDF calls it a "Mini-Conference Paper." Here is each section with what belongs in it:</p>
+
+<div class="report-sec"><div class="report-num">1</div><div class="report-body"><strong>Introduction</strong> — Problem context, research objectives, what you are investigating and why.</div></div>
+<div class="report-sec"><div class="report-num">2</div><div class="report-body"><strong>Dataset Description &amp; Topology</strong> — Describe all 4 datasets: size, features, targets, class distributions, unique challenges.</div></div>
+<div class="report-sec"><div class="report-num">3</div><div class="report-body"><strong>Data Cleaning &amp; Feature Engineering</strong> — Your Section 2 work: missing data, outliers, feature quality, label quality, for each dataset.</div></div>
+<div class="report-sec"><div class="report-num">4</div><div class="report-body"><strong>Experimental Setup &amp; Model Development</strong> — Describe the 8 algorithms, preprocessing pipeline, hyperparameters, train/test split, evaluation metrics.</div></div>
+<div class="report-sec"><div class="report-num">5</div><div class="report-body"><strong>Results</strong> — Tables and plots of all model performances. Classification: accuracy, F1, confusion matrices. Regression: R², RMSE.</div></div>
+<div class="report-sec"><div class="report-num">6</div><div class="report-body"><strong>Error &amp; Failure Analysis</strong> — The 10 worst predictions per dataset per model. Why did they fail?</div></div>
+<div class="report-sec"><div class="report-num">7</div><div class="report-body"><strong>Cross-Dataset Comparison</strong> — Compare all 4 datasets. Which was hardest? Which benefited most from kernels?</div></div>
+<div class="report-sec"><div class="report-num">8</div><div class="report-body"><strong>Discussion</strong> — Bias &amp; fairness, computational analysis, theory vs. reality (Discussions C, D, E).</div></div>
+<div class="report-sec"><div class="report-num">9</div><div class="report-body"><strong>Conclusion</strong> — Key findings, lessons learned, what you would do differently.</div></div>
+
+<div class="callout warn">
+<div class="c-label">Length Requirement</div>
+<p>20 to 35 pages, <strong>excluding</strong> the code appendix. The PDF says: "Do not submit a raw, unformatted Jupyter Notebook as your primary document."</p>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c6" data-s="s-report">
+  <label for="c6">I know the 9-section report structure and the 20–35 page length requirement</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 8: WHAT YOU MUST BUILD -->
+<!-- ================================================================ -->
+<section id="s-build">
+<h2><span class="sec-tag">Implementation Summary</span>Exactly What You Must Build</h2>
+
+<p>Let's be concrete. Here is a complete checklist of every artifact the assignment expects:</p>
+
+<h3>Code Artifacts</h3>
+<table>
+<tr><th>Component</th><th>Details</th></tr>
+<tr><td>Data loaders</td><td>Load and parse all 4 datasets (CSV, XLSX)</td></tr>
+<tr><td>Data quality module</td><td>Missing data classifier, 3 outlier detectors, feature quality checks</td></tr>
+<tr><td>Preprocessing pipeline</td><td>Imputation, outlier clipping, scaling, SMOTE, train/test split — per dataset</td></tr>
+<tr><td>8 model implementations</td><td>LogReg, LinReg, KNN, DTree, KernelSVM, KRR, KernelKNN, KPCA — all from scratch</td></tr>
+<tr><td>3 kernel functions</td><td>Linear, RBF (Gaussian), Polynomial — at minimum</td></tr>
+<tr><td>Evaluation module</td><td>Accuracy, F1, precision, recall, confusion matrix, R², RMSE, MAE</td></tr>
+<tr><td>Visualization module</td><td>All plots embedded in the report</td></tr>
+</table>
+
+<h3>Report Artifacts</h3>
+<table>
+<tr><th>Artifact</th><th>What It Shows</th></tr>
+<tr><td>Missing data heatmaps</td><td>Which features are missing, how much, what pattern</td></tr>
+<tr><td>Outlier comparison plots</td><td>Z-score vs IQR vs Isolation Forest — how many each flags</td></tr>
+<tr><td>Class distribution plots</td><td>Balance/imbalance of classification targets</td></tr>
+<tr><td>Model comparison tables</td><td>All 8 models × 4 datasets, with accuracy/R² and other metrics</td></tr>
+<tr><td>Confusion matrices</td><td>At least for the best model per dataset</td></tr>
+<tr><td>Kernel matrix heatmaps</td><td>Visual structure of K for different kernels</td></tr>
+<tr><td>Training time plots</td><td>Computational cost comparison</td></tr>
+<tr><td>Cross-dataset bar charts</td><td>Side-by-side model performance across all datasets</td></tr>
+</table>
+
+<div class="chk">
+  <input type="checkbox" id="c7" data-s="s-build">
+  <label for="c7">I have a clear checklist of every code module and report artifact I need to produce</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 9: THE RULES -->
+<!-- ================================================================ -->
+<section id="s-rules">
+<h2><span class="sec-tag">Constraints</span>Rules You Cannot Break</h2>
+
+<div class="flow">
+<div class="flow-step"><div class="flow-num">!</div><div class="flow-body"><strong>No scikit-learn</strong> for core model implementations. You may only use NumPy and SciPy. (openpyxl for reading Excel files is acceptable for data I/O.)</div></div>
+<div class="flow-step"><div class="flow-num">!</div><div class="flow-body"><strong>All four datasets</strong> must be used. You cannot skip one.</div></div>
+<div class="flow-step"><div class="flow-num">!</div><div class="flow-body"><strong>All eight models</strong> must be implemented. You cannot skip one.</div></div>
+<div class="flow-step"><div class="flow-num">!</div><div class="flow-body"><strong>No raw numbers without explanation.</strong> "RBF got 92%" is explicitly prohibited. Every result must have mathematical justification.</div></div>
+<div class="flow-step"><div class="flow-num">!</div><div class="flow-body"><strong>Mini-Conference Paper format.</strong> Not a Jupyter Notebook. A structured 20–35 page document.</div></div>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c8" data-s="s-rules">
+  <label for="c8">I understand the hard constraints: no sklearn, all datasets, all models, paper format</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 10: HOW TO APPROACH IT -->
+<!-- ================================================================ -->
+<section id="s-strategy">
+<h2><span class="sec-tag">Strategy</span>Recommended Approach Order</h2>
+
+<p>Given the grading weights, here is a recommended priority order:</p>
+
+<div class="flow">
+<div class="flow-step"><div class="flow-num">1</div><div class="flow-body"><strong>Data Quality First (25%)</strong> — Load each dataset. Run missing data analysis, outlier detection, feature quality checks. Generate all heatmaps and comparison plots. Write up findings.</div></div>
+<div class="flow-step"><div class="flow-num">2</div><div class="flow-body"><strong>Preprocessing</strong> — Build a per-dataset pipeline: impute, clip, scale, SMOTE. Verify clean data goes into models.</div></div>
+<div class="flow-step"><div class="flow-num">3</div><div class="flow-body"><strong>Implement Models (15%)</strong> — Start with the simplest (KNN, LinReg) to get a working pipeline, then add the complex ones (SVM, KPCA).</div></div>
+<div class="flow-step"><div class="flow-num">4</div><div class="flow-body"><strong>Kernel Investigation (30%)</strong> — Run all kernel types on all datasets. Analyze kernel matrices (eigenvalues, condition numbers). Write justifications.</div></div>
+<div class="flow-step"><div class="flow-num">5</div><div class="flow-body"><strong>Research Discussion (30%)</strong> — Cross-dataset comparison, failure analysis (10 worst), bias, computational analysis, theory vs. reality.</div></div>
+<div class="flow-step"><div class="flow-num">6</div><div class="flow-body"><strong>Write the Report</strong> — Compile everything into the 9-section paper. Embed all figures. Add captions and references.</div></div>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c9" data-s="s-strategy">
+  <label for="c9">I have a plan: quality → preprocess → models → kernel investigation → discussion → report</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 11: DATA FLOW DIAGRAM -->
+<!-- ================================================================ -->
+<section id="s-flow">
+<h2><span class="sec-tag">Visual Summary</span>End-to-End Data Flow</h2>
+
+<p>This diagram shows how your data moves through the entire system, mapping each stage to the assignment section it fulfills.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 700 320" width="680" xmlns="http://www.w3.org/2000/svg" style="font-family:Segoe UI,sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="7" markerHeight="5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#5c6575"/></marker>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#d4a44a"/><stop offset="100%" stop-color="#42b983"/></linearGradient>
+  </defs>
+
+  <!-- Stage boxes -->
+  <rect x="20" y="30" width="120" height="56" rx="8" fill="#131921" stroke="#d4a44a" stroke-width="1.5"/>
+  <text x="80" y="54" text-anchor="middle" fill="#d4a44a" font-size="10" font-weight="700">4 RAW DATASETS</text>
+  <text x="80" y="72" text-anchor="middle" fill="#5c6575" font-size="8">Section 1</text>
+
+  <rect x="170" y="20" width="120" height="76" rx="8" fill="#131921" stroke="#5b9cf5" stroke-width="1.5"/>
+  <text x="230" y="42" text-anchor="middle" fill="#5b9cf5" font-size="10" font-weight="700">QUALITY CHECK</text>
+  <text x="230" y="58" text-anchor="middle" fill="#5c6575" font-size="8">Missing · Outliers</text>
+  <text x="230" y="70" text-anchor="middle" fill="#5c6575" font-size="8">Features · Labels</text>
+  <text x="230" y="86" text-anchor="middle" fill="#d4a44a" font-size="8" font-weight="600">25% of grade</text>
+
+  <rect x="320" y="30" width="100" height="56" rx="8" fill="#131921" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="370" y="54" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">PREPROCESS</text>
+  <text x="370" y="72" text-anchor="middle" fill="#5c6575" font-size="8">Clean → Scale</text>
+
+  <rect x="450" y="14" width="100" height="88" rx="8" fill="#131921" stroke="#42b983" stroke-width="1.5"/>
+  <text x="500" y="34" text-anchor="middle" fill="#42b983" font-size="10" font-weight="700">8 MODELS</text>
+  <text x="500" y="50" text-anchor="middle" fill="#5c6575" font-size="8">4 non-kernel</text>
+  <text x="500" y="62" text-anchor="middle" fill="#5c6575" font-size="8">4 kernel</text>
+  <text x="500" y="78" text-anchor="middle" fill="#d4a44a" font-size="8" font-weight="600">15% of grade</text>
+  <text x="500" y="94" text-anchor="middle" fill="#5c6575" font-size="7">×4 datasets ×2 tasks</text>
+
+  <rect x="580" y="30" width="100" height="56" rx="8" fill="#131921" stroke="#e85d5d" stroke-width="1.5"/>
+  <text x="630" y="54" text-anchor="middle" fill="#e85d5d" font-size="10" font-weight="700">EVALUATE</text>
+  <text x="630" y="72" text-anchor="middle" fill="#5c6575" font-size="8">Acc · R² · F1</text>
+
+  <!-- Arrows -->
+  <line x1="142" y1="58" x2="168" y2="58" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+  <line x1="292" y1="58" x2="318" y2="58" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+  <line x1="422" y1="58" x2="448" y2="58" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+  <line x1="552" y1="58" x2="578" y2="58" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+
+  <!-- Analysis boxes below -->
+  <rect x="170" y="140" width="200" height="60" rx="8" fill="#131921" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="270" y="164" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">KERNEL INVESTIGATION</text>
+  <text x="270" y="182" text-anchor="middle" fill="#5c6575" font-size="8">Why did kernel X win on dataset Y?</text>
+  <text x="270" y="194" text-anchor="middle" fill="#d4a44a" font-size="8" font-weight="600">30% of grade</text>
+
+  <rect x="400" y="140" width="200" height="60" rx="8" fill="#131921" stroke="#67d5e8" stroke-width="1.5"/>
+  <text x="500" y="164" text-anchor="middle" fill="#67d5e8" font-size="10" font-weight="700">RESEARCH DISCUSSION</text>
+  <text x="500" y="182" text-anchor="middle" fill="#5c6575" font-size="8">Cross-dataset · Failure · Bias · Compute</text>
+  <text x="500" y="194" text-anchor="middle" fill="#d4a44a" font-size="8" font-weight="600">30% of grade</text>
+
+  <!-- Connecting lines down -->
+  <line x1="500" y1="104" x2="500" y2="115" stroke="#5c6575" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="500" y1="115" x2="270" y2="115" stroke="#5c6575" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="270" y1="115" x2="270" y2="138" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+  <line x1="500" y1="115" x2="500" y2="138" stroke="#5c6575" stroke-width="1.2" marker-end="url(#a)"/>
+
+  <!-- Final report -->
+  <rect x="250" y="240" width="200" height="50" rx="8" fill="#1a2233" stroke="url(#g1)" stroke-width="2"/>
+  <text x="350" y="262" text-anchor="middle" fill="#d4a44a" font-size="11" font-weight="700">20–35 PAGE REPORT</text>
+  <text x="350" y="278" text-anchor="middle" fill="#5c6575" font-size="8">9 sections · Mini-Conference Paper</text>
+
+  <line x1="270" y1="202" x2="320" y2="238" stroke="#5c6575" stroke-width="1" stroke-dasharray="4" marker-end="url(#a)"/>
+  <line x1="500" y1="202" x2="420" y2="238" stroke="#5c6575" stroke-width="1" stroke-dasharray="4" marker-end="url(#a)"/>
+  <line x1="630" y1="88" x2="630" y2="265" stroke="#5c6575" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="630" y1="265" x2="452" y2="265" stroke="#5c6575" stroke-width="1" stroke-dasharray="4" marker-end="url(#a)"/>
+</svg>
+<div class="diagram-cap">Figure 1 — Complete assignment flow. Top row: data pipeline. Middle row: analysis (60% of grade). Bottom: final deliverable.</div>
+</div>
+
+<div class="chk">
+  <input type="checkbox" id="c10" data-s="s-flow">
+  <label for="c10">I can trace the full assignment flow from raw data to final report</label>
+</div>
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC 12: FINAL SELF-CHECK -->
+<!-- ================================================================ -->
+<section id="s-final">
+<h2><span class="sec-tag">Final Check</span>Before You Start Coding</h2>
+
+<p>Answer these questions honestly. If any answer is "no," go back and re-read the relevant section above.</p>
+
+<div class="chk"><input type="checkbox" id="c11" data-s="s-final"><label for="c11">I know the report is 60% of my grade and the code is 40%</label></div>
+<div class="chk"><input type="checkbox" id="c12" data-s="s-final"><label for="c12">I can list all 4 datasets and their prediction targets</label></div>
+<div class="chk"><input type="checkbox" id="c13" data-s="s-final"><label for="c13">I know the 4 data quality investigations (missing, outlier, feature, label)</label></div>
+<div class="chk"><input type="checkbox" id="c14" data-s="s-final"><label for="c14">I can name all 8 models (4 non-kernel + 4 kernel)</label></div>
+<div class="chk"><input type="checkbox" id="c15" data-s="s-final"><label for="c15">I understand "mathematical justification" means connecting data shape to kernel choice</label></div>
+<div class="chk"><input type="checkbox" id="c16" data-s="s-final"><label for="c16">I know the 5 research discussions (cross-dataset, failure, bias, compute, theory)</label></div>
+<div class="chk"><input type="checkbox" id="c17" data-s="s-final"><label for="c17">I know the report is a 9-section Mini-Conference Paper, 20–35 pages</label></div>
+
+</section>
+
+<!-- ================================================================ -->
+<!-- SEC: PERSISTENCE EXPLANATION -->
+<!-- ================================================================ -->
+<section id="s-persist">
+<h2><span class="sec-tag">How This Page Works</span>Progress Tracking</h2>
+<p>Every checkbox saves its state to your browser's <strong>localStorage</strong>. When you reload, your progress is restored automatically.</p>
+<details>
+<summary>Why localStorage?</summary>
+<div class="inner">
+<p><strong>localStorage</strong> stores key-value pairs in your browser with no expiration. It was chosen over cookies because: (1) it has a simple <code>setItem/getItem</code> API, (2) it stores 5MB vs cookies' 4KB, and (3) data stays client-side — no server roundtrips. The tradeoff is that progress is per-browser and per-device.</p>
+</div>
+</details>
+</section>
+
+</div><!-- end .main -->
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+/* Sections for sidebar */
+const S=[
+  {id:'s-big-picture',  lbl:'The Big Picture'},
+  {id:'s-datasets',     lbl:'4 Datasets'},
+  {id:'s-quality',      lbl:'Data Quality (25%)'},
+  {id:'s-algos',        lbl:'Algorithms (15%)'},
+  {id:'s-kernel',       lbl:'Kernel Invest. (30%)'},
+  {id:'s-discussion',   lbl:'Discussion (30%)'},
+  {id:'s-report',       lbl:'Report Structure'},
+  {id:'s-build',        lbl:'What to Build'},
+  {id:'s-rules',        lbl:'Hard Rules'},
+  {id:'s-strategy',     lbl:'Strategy'},
+  {id:'s-flow',         lbl:'Data Flow Diagram'},
+  {id:'s-final',        lbl:'Final Self-Check'},
+];
+
+const nav=document.getElementById('sNav');
+S.forEach((s,i)=>{
+  const a=document.createElement('a');
+  a.href='#'+s.id;
+  a.innerHTML=`<span class="dot" id="sd${i}"></span>${s.lbl}`;
+  nav.appendChild(a);
+});
+
+/* Checkboxes */
+const allC=document.querySelectorAll('.chk input[type=checkbox]');
+allC.forEach(cb=>{
+  const v=localStorage.getItem('hw3g_'+cb.id);
+  if(v==='true') cb.checked=true;
+  cb.addEventListener('change',()=>{
+    localStorage.setItem('hw3g_'+cb.id,cb.checked);
+    upd();
+  });
+});
+
+function upd(){
+  /* Per-section completion */
+  const secDone={};
+  allC.forEach(cb=>{
+    const sid=cb.dataset.s;
+    if(!secDone[sid]) secDone[sid]={total:0,done:0};
+    secDone[sid].total++;
+    if(cb.checked) secDone[sid].done++;
+  });
+  S.forEach((s,i)=>{
+    const d=document.getElementById('sd'+i);
+    const info=secDone[s.id];
+    if(info && info.done>=info.total){d.classList.add('done');d.textContent='✓';}
+    else{d.classList.remove('done');d.textContent='';}
+  });
+  /* Global progress */
+  let done=0; allC.forEach(cb=>{if(cb.checked)done++;});
+  const pct=Math.round(done/allC.length*100);
+  document.getElementById('pFill').style.width=pct+'%';
+  document.getElementById('pLabel').textContent=done+' / '+allC.length;
+}
+upd();
+
+/* Scroll highlight */
+const sEls=S.map(s=>document.getElementById(s.id));
+const nLinks=nav.querySelectorAll('a');
+window.addEventListener('scroll',()=>{
+  let cur=0;
+  sEls.forEach((el,i)=>{if(el&&el.getBoundingClientRect().top<180)cur=i;});
+  nLinks.forEach((a,i)=>a.classList.toggle('active',i===cur));
+},{passive:true});
+
+/* Grade donut chart */
+(function(){
+  const cv=document.getElementById('donut');
+  if(!cv)return;
+  const c=cv.getContext('2d');
+  const cx=80,cy=80,r=60,lw=18;
+  const segs=[
+    {pct:.25,color:'#d4a44a'},
+    {pct:.15,color:'#5b9cf5'},
+    {pct:.30,color:'#a78bfa'},
+    {pct:.30,color:'#42b983'},
+  ];
+  let start=-Math.PI/2;
+  segs.forEach(s=>{
+    const end=start+s.pct*Math.PI*2;
+    c.beginPath();c.arc(cx,cy,r,start,end);
+    c.strokeStyle=s.color;c.lineWidth=lw;c.lineCap='butt';c.stroke();
+    start=end+.02;
+  });
+  c.fillStyle='#d1d5db';c.font='bold 18px Segoe UI,sans-serif';c.textAlign='center';c.textBaseline='middle';
+  c.fillText('100%',cx,cy-6);
+  c.fillStyle='#5c6575';c.font='9px Segoe UI,sans-serif';
+  c.fillText('total grade',cx,cy+10);
+})();
+</script>
+</body>
+</html>
